@@ -24,6 +24,7 @@ public class MenuPrincipal extends JFrame {
     private ClienteRepo clienteRepo;
     private ServicioRepo servicioRepo;
     private ReservaRepo reservaRepo;
+    private ParteRepo parteRepo;
     
     public MenuPrincipal() {
         initRepositorios();
@@ -31,11 +32,11 @@ public class MenuPrincipal extends JFrame {
     }
     
     private void initRepositorios() {
-        Path dataDir = Path.of("data");
-        clienteRepo = new ClienteFileRepo(dataDir);
-        ParteRepo parteRepo = new ParteFileRepo(dataDir);
-        servicioRepo = new ServicioFileRepo(dataDir);
-        reservaRepo = new ReservaFileRepo(dataDir);
+    Path dataDir = Path.of("data");
+    clienteRepo = new ClienteFileRepo(dataDir);
+    parteRepo = new ParteFileRepo(dataDir);         // ← SIN "ParteRepo" al inicio
+    servicioRepo = new ServicioFileRepo(dataDir);
+    reservaRepo = new ReservaFileRepo(dataDir);
         
         // Inicializar servicios
         servicioInventario = new ServicioInventario(parteRepo);
@@ -162,14 +163,14 @@ public class MenuPrincipal extends JFrame {
     }
     
     private void abrirFormularioInventario() {
-        FormularioInventario form = new FormularioInventario(servicioInventario);
-        form.setVisible(true);
-    }
+    FormularioInventario form = new FormularioInventario(servicioInventario, parteRepo);
+    form.setVisible(true);
+}
     
     private void abrirFormularioReserva() {
-        FormularioReserva form = new FormularioReserva(servicioReserva, clienteRepo, servicioRepo);
-        form.setVisible(true);
-    }
+    FormularioReserva form = new FormularioReserva(servicioReserva, clienteRepo, servicioRepo, parteRepo, reservaRepo);
+    form.setVisible(true);
+}
     
     private void abrirFormularioEstado() {
         FormularioEstadoReserva form = new FormularioEstadoReserva(servicioReserva, reservaRepo);
