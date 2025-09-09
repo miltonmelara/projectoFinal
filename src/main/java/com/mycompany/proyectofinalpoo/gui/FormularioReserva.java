@@ -121,13 +121,26 @@ tabbedPane.addTab("Disponibilidad", panelMecanicos);
         gbc.gridwidth = 1;
         
         // Cliente
-        gbc.gridx = 0; gbc.gridy = 1;
-        panel.add(new JLabel("Cliente:"), gbc);
-        gbc.gridx = 1; gbc.gridwidth = 2;
-        cmbClientes = new JComboBox<>();
-        cmbClientes.setPreferredSize(new Dimension(300, 25));
-        cmbClientes.addActionListener(e -> actualizarVistaPrevia());
-        panel.add(cmbClientes, gbc);
+        // Cliente
+gbc.gridx = 0; gbc.gridy = 1;
+panel.add(new JLabel("Cliente:"), gbc);
+gbc.gridx = 1; gbc.gridwidth = 2;
+
+// Panel para ComboBox + botón
+JPanel panelCliente = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+cmbClientes = new JComboBox<>();
+cmbClientes.setPreferredSize(new Dimension(270, 25));
+cmbClientes.addActionListener(e -> actualizarVistaPrevia());
+
+JButton btnAgregarCliente = new JButton("+");
+btnAgregarCliente.setPreferredSize(new Dimension(30, 25));
+btnAgregarCliente.setFont(new Font("Arial", Font.BOLD, 12));
+btnAgregarCliente.setToolTipText("Agregar nuevo cliente");
+btnAgregarCliente.addActionListener(e -> agregarClienteRapido());
+
+panelCliente.add(cmbClientes);
+panelCliente.add(btnAgregarCliente);
+panel.add(panelCliente, gbc);
         
         // Servicio
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 1;
@@ -896,6 +909,53 @@ private void debugBusqueda(String textoBuscar, int resultados) {
     System.out.println("======================");
 }
     
+private void agregarClienteRapido() {
+    String nombre = JOptionPane.showInputDialog(this, "Nombre del cliente:");
+    if (nombre == null || nombre.trim().isEmpty()) {
+        return; // Usuario canceló o no ingresó nada
+    }
+    
+    String contacto = JOptionPane.showInputDialog(this, "Contacto (teléfono/email):");
+    if (contacto == null) contacto = "";
+    
+    String marca = JOptionPane.showInputDialog(this, "Marca del vehículo:");
+    if (marca == null) marca = "";
+    
+    String modelo = JOptionPane.showInputDialog(this, "Modelo del vehículo:");
+    if (modelo == null) modelo = "";
+    
+    String anioStr = JOptionPane.showInputDialog(this, "Año del vehículo:");
+    if (anioStr == null) anioStr = "2020";
+    
+    try {
+        int anio = Integer.parseInt(anioStr);
+        String id = "CLI_" + System.currentTimeMillis(); // ID único basado en timestamp
+        
+        Cliente nuevoCliente = new Cliente(id, nombre.trim(), contacto.trim(), 
+                                         marca.trim(), modelo.trim(), anio);
+        
+        // Guardar el cliente usando el repositorio
+        clienteRepo.save(nuevoCliente);
+        
+        // Agregar al ComboBox sin recargar todo
+        cmbClientes.addItem(new ClienteItem(nuevoCliente));
+        
+        // Seleccionar el nuevo cliente
+        cmbClientes.setSelectedIndex(cmbClientes.getItemCount() - 1);
+        
+        // Actualizar vista previa
+        actualizarVistaPrevia();
+        
+        txtResultado.setText("Cliente agregado exitosamente: " + nombre);
+        
+    } catch (NumberFormatException ex) {
+        JOptionPane.showMessageDialog(this, "Año debe ser un número válido", 
+                                    "Error", JOptionPane.ERROR_MESSAGE);
+    } catch (Exception ex) {
+        JOptionPane.showMessageDialog(this, "Error agregando cliente: " + ex.getMessage(), 
+                                    "Error", JOptionPane.ERROR_MESSAGE);
+    }
+}
     
     
     
