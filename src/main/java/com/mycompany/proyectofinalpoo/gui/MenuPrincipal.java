@@ -173,9 +173,14 @@ public class MenuPrincipal extends JFrame {
 }
     
     private void abrirFormularioEstado() {
-        FormularioEstadoReserva form = new FormularioEstadoReserva(servicioReserva, reservaRepo);
-        form.setVisible(true);
-    }
+    FormularioEstadoReserva form = new FormularioEstadoReserva(
+        servicioReserva, 
+        reservaRepo,
+        clienteRepo,    
+        servicioRepo    
+    );
+    form.setVisible(true);
+}
     
     private void abrirFormularioHistorial() {
         FormularioHistorial form = new FormularioHistorial(servicioCliente, clienteRepo);
