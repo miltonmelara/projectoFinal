@@ -39,9 +39,9 @@ public class MenuPrincipal extends JFrame {
     reservaRepo = new ReservaFileRepo(dataDir);
         
         // Inicializar servicios
-        servicioInventario = new ServicioInventario(parteRepo);
-        servicioReserva = new ServicioReserva(reservaRepo, clienteRepo, servicioRepo, parteRepo);
-        servicioCliente = new ServicioCliente(clienteRepo, reservaRepo, servicioRepo);
+    servicioInventario = new ServicioInventario(parteRepo);
+    servicioReserva = new ServicioReserva(reservaRepo, clienteRepo, servicioRepo, parteRepo);
+    servicioCliente = new ServicioCliente(clienteRepo, reservaRepo, servicioRepo);
     }
     
     private void initComponents() {
@@ -186,6 +186,14 @@ public class MenuPrincipal extends JFrame {
         FormularioHistorial form = new FormularioHistorial(servicioCliente, clienteRepo);
         form.setVisible(true);
     }
+
+    /**
+     * Formularios deben construir un ServicioCliente.NuevoClienteRequest con nombre, contacto, marca, modelo y año antes de invocar crearCliente.
+     * Las entradas inválidas producirán ValidationException, por lo que la interfaz debe mostrar el mensaje generado.
+     */
+    public ServicioCliente getServicioCliente() {
+        return servicioCliente;
+    }
     
     public static void main(String[] args) {
         // Configurar Look and Feel
@@ -198,7 +206,6 @@ try {
         }
     }
 } catch (Exception e) {
-    // Si hay error, usar el look and feel por defecto
     System.out.println("No se pudo cargar Nimbus Look and Feel");
 }
         

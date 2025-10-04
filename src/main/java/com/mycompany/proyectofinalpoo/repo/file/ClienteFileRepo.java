@@ -29,48 +29,102 @@ public class ClienteFileRepo implements ClienteRepo {
         CsvUtil.ensureHeaders(csvFilePath, HEADERS, SEP);
     }
 
-    @Override public void save(Cliente c) {
-        if (c.getId() == null) c.setId(UUID.randomUUID().toString());
-    List<Cliente> clientes = findAll();
-    clientes.add(c);
-    writeAll(clientes);
+    @Override public void save(Cliente cliente) {
+        Cliente clienteNormalizado = normalizarCliente(cliente);
+        if (clienteNormalizado.getId() == null) clienteNormalizado.setId(UUID.randomUUID().toString());
+        List<Cliente> clientes = findAll();
+        clientes.add(clienteNormalizado);
+        writeAll(clientes);
     }
 
-    @Override public Optional<Cliente> findById(String id) { return findAll().stream().filter(x -> Objects.equals(x.getId(), id)).findFirst(); }
+    @Override public Optional<Cliente> findById(String id) { return findAll().stream().filter(actual -> Objects.equals(actual.getId(), id)).findFirst(); }
+
+    @Override public Optional<Cliente> findByNombre(String nombre) {
+        if (nombre == null) return Optional.empty();
+        String nombreNormalizado = nombre.trim();
+        if (nombreNormalizado.isEmpty()) return Optional.empty();
+        return findAll().stream().filter(actual -> nombreNormalizado.equalsIgnoreCase(actual.getNombre())).findFirst();
+    }
 
     @Override public List<Cliente> findAll() {
-    List<String[]> rows = CsvUtil.readAll(csvFilePath, SEP);
-    List<Cliente> clientes = new ArrayList<>();
-    for (String[] row : rows) {
-        if (row.length < 6) continue;
-        Cliente cliente = new Cliente(
-            CsvUtil.trimToNull(row[0]), row[1], row[2], row[3], row[4], CsvUtil.parseInt(row[5], 0)
-        );
-        clientes.add(cliente);
+        List<String[]> filas = CsvUtil.readAll(csvFilePath, SEP);
+        List<Cliente> clientes = new ArrayList<>();
+        for (String[] fila : filas) {
+            if (fila.length < 6) continue;
+            if (fila[0] != null && fila[0].equalsIgnoreCase("id")) continue;
+            Cliente cliente = construirCliente(
+                CsvUtil.trimToNull(fila[0]),
+                fila[1],
+                fila[2],
+                fila[3],
+                fila[4],
+                CsvUtil.parseInt(fila[5], 0)
+            );
+            clientes.add(cliente);
         }
-    return clientes;
+        return clientes;
     }
 
-    @Override public void update(Cliente c) {
-    List<Cliente> clientes = findAll();
-    for (int i = 0; i < clientes.size(); i++) if (Objects.equals(clientes.get(i).getId(), c.getId())) { clientes.set(i, c); break; }
-    writeAll(clientes);
+    @Override public boolean existsByContacto(String contacto) {
+        if (contacto == null) return false;
+        String contactoNormalizado = contacto.trim();
+        if (contactoNormalizado.isEmpty()) return false;
+        return findAll().stream().anyMatch(actual -> contactoNormalizado.equalsIgnoreCase(actual.getContacto()));
+    }
+
+    @Override public void update(Cliente cliente) {
+        Cliente clienteNormalizado = normalizarCliente(cliente);
+        List<Cliente> clientes = findAll();
+        for (int i = 0; i < clientes.size(); i++) {
+            if (Objects.equals(clientes.get(i).getId(), clienteNormalizado.getId())) {
+                clientes.set(i, clienteNormalizado);
+                break;
+            }
+        }
+        writeAll(clientes);
     }
 
     @Override public void delete(String id) {
-    List<Cliente> clientes = new ArrayList<>();
-    for (Cliente cliente : findAll()) if (!Objects.equals(cliente.getId(), id)) clientes.add(cliente);
-    writeAll(clientes);
+        List<Cliente> clientes = new ArrayList<>();
+        for (Cliente cliente : findAll()) if (!Objects.equals(cliente.getId(), id)) clientes.add(cliente);
+        writeAll(clientes);
     }
 
     private void writeAll(List<Cliente> clientes) {
-        List<String[]> rows = new ArrayList<>();
-        rows.add(HEADERS);
+        List<String[]> filas = new ArrayList<>();
+        filas.add(HEADERS);
         for (Cliente cliente : clientes) {
-            rows.add(new String[]{
-                    cliente.getId(), cliente.getNombre(), cliente.getContacto(), cliente.getMarcaAuto(), cliente.getModeloAuto(), String.valueOf(cliente.getAnioAuto())
+            filas.add(new String[]{
+                    cliente.getId(),
+                    cliente.getNombre(),
+                    cliente.getContacto(),
+                    cliente.getMarcaAuto(),
+                    cliente.getModeloAuto(),
+                    String.valueOf(cliente.getAnioAuto())
             });
         }
-        CsvUtil.writeAll(csvFilePath, rows, SEP);
+        CsvUtil.writeAll(csvFilePath, filas, SEP);
+    }
+
+    private Cliente normalizarCliente(Cliente cliente) {
+        Cliente copia = new Cliente();
+        copia.setId(cliente.getId());
+        copia.setNombre(cliente.getNombre());
+        copia.setContacto(cliente.getContacto());
+        copia.setMarcaAuto(cliente.getMarcaAuto());
+        copia.setModeloAuto(cliente.getModeloAuto());
+        copia.setAnioAuto(cliente.getAnioAuto());
+        return copia;
+    }
+
+    private Cliente construirCliente(String id, String nombre, String contacto, String marca, String modelo, int anio) {
+        Cliente cliente = new Cliente();
+        cliente.setId(id);
+        cliente.setNombre(nombre);
+        cliente.setContacto(contacto);
+        cliente.setMarcaAuto(marca);
+        cliente.setModeloAuto(modelo);
+        cliente.setAnioAuto(anio);
+        return cliente;
     }
 }

@@ -12,11 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
-import com.mycompany.proyectofinalpoo.Cliente;
-import com.mycompany.proyectofinalpoo.Parte;
-import com.mycompany.proyectofinalpoo.Reserva;
-import com.mycompany.proyectofinalpoo.ReservaEstado;
-import com.mycompany.proyectofinalpoo.Servicio;
 import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
 import com.mycompany.proyectofinalpoo.repo.ParteRepo;
 import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
@@ -25,9 +20,9 @@ import com.mycompany.proyectofinalpoo.repo.file.ClienteFileRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ParteFileRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ReservaFileRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ServicioFileRepo;
-import com.mycompany.proyectofinalpoo.repo.servicios.ServicioReserva;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioCliente;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioInventario;
+import com.mycompany.proyectofinalpoo.repo.servicios.ServicioReserva;
 import com.mycompany.proyectofinalpoo.repo.servicios.dto.HistorialCliente;
 
 /**
@@ -77,9 +72,9 @@ public class ProyectoFinalPOO {
 
     private static void seedIfEmpty(ClienteRepo cr, ParteRepo pr, ServicioRepo sr, ReservaRepo rr) {
         if (cr.findAll().isEmpty()) {
-            cr.save(new Cliente(null, "Ana Pérez", "555-111", "Toyota", "Corolla", 2018));
-            cr.save(new Cliente(null, "Luis Gómez", "555-222", "Honda", "Civic", 2019));
-            cr.save(new Cliente(null, "Marta Díaz", "555-333", "Ford", "Focus", 2016));
+            cr.save(new Cliente(null, "Ana Pérez", "555111", "Toyota", "Corolla", 2019));
+            cr.save(new Cliente(null, "Luis Gómez", "555222", "Honda", "Civic", 2020));
+            cr.save(new Cliente(null, "Marta Díaz", "555333", "Ford", "Focus", 2018));
         }
         if (pr.findAll().isEmpty()) {
             pr.save(new Parte(null, "FILTRO-ACEITE", "Filtros", 10, 8.5, 5.0));
