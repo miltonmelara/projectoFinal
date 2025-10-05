@@ -11,6 +11,7 @@ import java.util.Objects;
 
 import com.mycompany.proyectofinalpoo.Cliente;
 import com.mycompany.proyectofinalpoo.Reserva;
+import com.mycompany.proyectofinalpoo.ReservaEstado;
 import com.mycompany.proyectofinalpoo.Servicio;
 import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
 import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
@@ -129,7 +130,16 @@ public class ServicioCliente {
         return clienteExistente;
     }
 
-    public void deleteCliente(String id) { clienteRepo.delete(id); }
+    public Cliente eliminarCliente(String idCliente) {
+        if (idCliente == null || idCliente.trim().isEmpty()) throw new ValidationException("id requerido");
+        String idNormalizado = idCliente.trim();
+        Cliente cliente = clienteRepo.findById(idNormalizado).orElseThrow(() -> new NotFoundException("cliente no encontrado"));
+        List<Reserva> reservas = reservaRepo.findByClienteId(idNormalizado);
+        if (tieneReservasActivas(reservas)) throw new ValidationException("cliente con reservas activas");
+        boolean eliminado = clienteRepo.delete(idNormalizado);
+        if (!eliminado) throw new NotFoundException("cliente no encontrado");
+        return cliente;
+    }
 
     public HistorialCliente getHistorial(String clienteId) {
         Cliente cliente = clienteRepo.findById(clienteId).orElseThrow(() -> new NotFoundException("Cliente no encontrado: " + clienteId));
@@ -137,6 +147,17 @@ public class ServicioCliente {
         List<Servicio> servicios = new ArrayList<>();
         for (Reserva reserva : reservas) servicioRepo.findById(reserva.getServicioId()).ifPresent(servicios::add);
         return new HistorialCliente(cliente, reservas, servicios);
+    }
+
+    private boolean tieneReservasActivas(List<Reserva> reservas) {
+        if (reservas == null || reservas.isEmpty()) return false;
+        for (Reserva reserva : reservas) if (esEstadoActivo(reserva.getEstado())) return true;
+        return false;
+    }
+
+    private boolean esEstadoActivo(ReservaEstado estado) {
+        if (estado == null) return false;
+        return estado == ReservaEstado.PROGRAMADA || estado == ReservaEstado.EN_PROGRESO;
     }
 
     private static class DatosCliente {

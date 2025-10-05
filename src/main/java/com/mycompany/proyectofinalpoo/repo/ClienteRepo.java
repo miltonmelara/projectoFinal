@@ -20,5 +20,5 @@ public interface ClienteRepo {
     List<Cliente> findAll();
     boolean existsByContacto(String contacto);
     void update(Cliente c);
-    void delete(String id);
+    boolean delete(String id);
 }

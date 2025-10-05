@@ -87,10 +87,23 @@ public class ClienteFileRepo implements ClienteRepo {
         copiarDatos(clienteNormalizado, cliente);
     }
 
-    @Override public void delete(String id) {
-        List<Cliente> clientes = new ArrayList<>();
-        for (Cliente cliente : findAll()) if (!Objects.equals(cliente.getId(), id)) clientes.add(cliente);
-        writeAll(clientes);
+    @Override public boolean delete(String id) {
+        if (id == null) return false;
+        String idNormalizado = id.trim();
+        if (idNormalizado.isEmpty()) return false;
+        List<Cliente> clientes = findAll();
+        List<Cliente> restantes = new ArrayList<>();
+        boolean eliminado = false;
+        for (Cliente cliente : clientes) {
+            if (Objects.equals(cliente.getId(), idNormalizado)) {
+                eliminado = true;
+            } else {
+                restantes.add(cliente);
+            }
+        }
+        if (!eliminado) return false;
+        writeAll(restantes);
+        return true;
     }
 
     private void writeAll(List<Cliente> clientes) {
