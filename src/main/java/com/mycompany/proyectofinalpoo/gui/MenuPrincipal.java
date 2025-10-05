@@ -190,6 +190,10 @@ public class MenuPrincipal extends JFrame {
     public ServicioCliente obtenerServicioCliente() {
         return servicioCliente;
     }
+
+    public ServicioReserva obtenerServicioReserva() {
+        return servicioReserva;
+    }
     
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new MenuPrincipal().setVisible(true));

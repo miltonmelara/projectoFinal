@@ -7,6 +7,7 @@ package com.mycompany.proyectofinalpoo.repo.servicios;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,8 @@ import com.mycompany.proyectofinalpoo.repo.ParteRepo;
 import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
 import com.mycompany.proyectofinalpoo.repo.ServicioRepo;
 import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
+import com.mycompany.proyectofinalpoo.repo.servicios.dto.CalendarioReservas;
+import com.mycompany.proyectofinalpoo.repo.servicios.dto.DiaCalendario;
 
 /**
  *
@@ -98,4 +101,94 @@ public class ServicioReserva {
     }
 
     public List<Reserva> calendarioPorDia(LocalDate dia) { return reservaRepo.findByFecha(dia); }
+
+    public DiaCalendario obtenerDiaCalendario(LocalDate fecha, String mecanico, ReservaEstado estado) {
+        if (fecha == null) throw new ValidationException("fecha requerida");
+        String filtroMecanico = normalizarFiltroMecanico(mecanico);
+        List<Reserva> reservas = filtrarReservas(reservaRepo.findByFecha(fecha), filtroMecanico, estado);
+        return construirDiaCalendario(fecha, reservas);
+    }
+
+    public CalendarioReservas generarCalendario(LocalDate fechaInicio, LocalDate fechaFin, String mecanico, ReservaEstado estado) {
+        if (fechaInicio == null || fechaFin == null) throw new ValidationException("rango requerido");
+        LocalDate inicio = fechaInicio;
+        LocalDate fin = fechaFin;
+        if (inicio.isAfter(fin)) {
+            inicio = fechaFin;
+            fin = fechaInicio;
+        }
+        String filtroMecanico = normalizarFiltroMecanico(mecanico);
+        List<Reserva> reservas = reservaRepo.findEntreFechas(inicio, fin);
+        Map<LocalDate, List<Reserva>> agrupadas = agruparPorFecha(reservas);
+        List<DiaCalendario> dias = new ArrayList<>();
+        LocalDate cursor = inicio;
+        while (!cursor.isAfter(fin)) {
+            List<Reserva> delDia = agrupadas.getOrDefault(cursor, Collections.emptyList());
+            List<Reserva> filtradas = filtrarReservas(delDia, filtroMecanico, estado);
+            dias.add(construirDiaCalendario(cursor, filtradas));
+            cursor = cursor.plusDays(1);
+        }
+        int totalReservas = 0;
+        int totalProgramadas = 0;
+        int totalEnProgreso = 0;
+        int totalFinalizadas = 0;
+        int totalEntregadas = 0;
+        for (DiaCalendario dia : dias) {
+            totalReservas += dia.obtenerReservas().size();
+            totalProgramadas += dia.obtenerTotalProgramadas();
+            totalEnProgreso += dia.obtenerTotalEnProgreso();
+            totalFinalizadas += dia.obtenerTotalFinalizadas();
+            totalEntregadas += dia.obtenerTotalEntregadas();
+        }
+        return new CalendarioReservas(inicio, fin, dias, totalReservas, totalProgramadas, totalEnProgreso, totalFinalizadas, totalEntregadas);
+    }
+
+    private Map<LocalDate, List<Reserva>> agruparPorFecha(List<Reserva> reservas) {
+        Map<LocalDate, List<Reserva>> mapa = new HashMap<>();
+        for (Reserva reserva : reservas) {
+            LocalDate fecha = reserva.getFecha().toLocalDate();
+            mapa.computeIfAbsent(fecha, f -> new ArrayList<>()).add(reserva);
+        }
+        return mapa;
+    }
+
+    private List<Reserva> filtrarReservas(List<Reserva> reservas, String mecanico, ReservaEstado estado) {
+        List<Reserva> resultado = new ArrayList<>();
+        for (Reserva reserva : reservas) {
+            if (estado != null && reserva.getEstado() != estado) continue;
+            if (!coincideMecanico(reserva.getMecanicoAsignado(), mecanico)) continue;
+            resultado.add(reserva);
+        }
+        List<Reserva> ordenadas = new ArrayList<>(resultado);
+        ordenadas.sort((a, b) -> a.getFecha().compareTo(b.getFecha()));
+        return ordenadas;
+    }
+
+    private boolean coincideMecanico(String valorActual, String filtro) {
+        if (filtro == null) return true;
+        if (valorActual == null) return false;
+        return valorActual.equalsIgnoreCase(filtro);
+    }
+
+    private String normalizarFiltroMecanico(String mecanico) {
+        if (mecanico == null) return null;
+        String valor = mecanico.trim();
+        if (valor.isEmpty()) return null;
+        return valor;
+    }
+
+    private DiaCalendario construirDiaCalendario(LocalDate fecha, List<Reserva> reservas) {
+        int programadas = 0;
+        int enProgreso = 0;
+        int finalizadas = 0;
+        int entregadas = 0;
+        for (Reserva reserva : reservas) {
+            ReservaEstado estado = reserva.getEstado();
+            if (estado == ReservaEstado.PROGRAMADA) programadas++;
+            else if (estado == ReservaEstado.EN_PROGRESO) enProgreso++;
+            else if (estado == ReservaEstado.FINALIZADA) finalizadas++;
+            else if (estado == ReservaEstado.ENTREGADA) entregadas++;
+        }
+        return new DiaCalendario(fecha, reservas, programadas, enProgreso, finalizadas, entregadas);
+    }
 }

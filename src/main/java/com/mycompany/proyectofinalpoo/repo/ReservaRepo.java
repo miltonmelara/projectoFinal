@@ -20,4 +20,5 @@ public interface ReservaRepo {
     void delete(String id);
     List<Reserva> findByClienteId(String clienteId);
     List<Reserva> findByFecha(LocalDate day);
+    List<Reserva> findEntreFechas(LocalDate inicio, LocalDate fin);
 }

@@ -77,6 +77,22 @@ public class ReservaFileRepo implements ReservaRepo {
     return reservas;
     }
 
+    @Override public List<Reserva> findEntreFechas(LocalDate inicio, LocalDate fin) {
+        if (inicio == null || fin == null) return new ArrayList<>();
+        LocalDate fechaInicio = inicio;
+        LocalDate fechaFin = fin;
+        if (fechaInicio.isAfter(fechaFin)) {
+            fechaInicio = fin;
+            fechaFin = inicio;
+        }
+        List<Reserva> reservas = new ArrayList<>();
+        for (Reserva reserva : findAll()) {
+            LocalDate fechaReserva = reserva.getFecha().toLocalDate();
+            if (!fechaReserva.isBefore(fechaInicio) && !fechaReserva.isAfter(fechaFin)) reservas.add(reserva);
+        }
+        return reservas;
+    }
+
     private void writeAll(List<Reserva> reservas) {
         List<String[]> rows = new ArrayList<>();
         rows.add(HEADERS);
