@@ -187,33 +187,11 @@ public class MenuPrincipal extends JFrame {
         form.setVisible(true);
     }
 
-    /**
-     * Formularios deben construir un ServicioCliente.NuevoClienteRequest con nombre, contacto, marca, modelo y año antes de invocar crearCliente.
-     * Las entradas inválidas producirán ValidationException, por lo que la interfaz debe mostrar el mensaje generado.
-     */
-    public ServicioCliente getServicioCliente() {
+    public ServicioCliente obtenerServicioCliente() {
         return servicioCliente;
     }
     
     public static void main(String[] args) {
-        // Configurar Look and Feel
-        // Configurar Look and Feel
-try {
-    for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
-        if ("Nimbus".equals(info.getName())) {
-            UIManager.setLookAndFeel(info.getClassName());
-            break;
-        }
-    }
-} catch (Exception e) {
-    System.out.println("No se pudo cargar Nimbus Look and Feel");
-}
-        
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                new MenuPrincipal().setVisible(true);
-            }
-        });
+        SwingUtilities.invokeLater(() -> new MenuPrincipal().setVisible(true));
     }
 }

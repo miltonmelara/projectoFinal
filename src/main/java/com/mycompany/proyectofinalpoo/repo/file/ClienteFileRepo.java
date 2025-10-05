@@ -35,6 +35,7 @@ public class ClienteFileRepo implements ClienteRepo {
         List<Cliente> clientes = findAll();
         clientes.add(clienteNormalizado);
         writeAll(clientes);
+        copiarDatos(clienteNormalizado, cliente);
     }
 
     @Override public Optional<Cliente> findById(String id) { return findAll().stream().filter(actual -> Objects.equals(actual.getId(), id)).findFirst(); }
@@ -44,6 +45,12 @@ public class ClienteFileRepo implements ClienteRepo {
         String nombreNormalizado = nombre.trim();
         if (nombreNormalizado.isEmpty()) return Optional.empty();
         return findAll().stream().filter(actual -> nombreNormalizado.equalsIgnoreCase(actual.getNombre())).findFirst();
+    }
+
+    @Override public Optional<Cliente> findByContacto(String contacto) {
+        String contactoNormalizado = normalizarTextoContacto(contacto);
+        if (contactoNormalizado == null) return Optional.empty();
+        return findAll().stream().filter(actual -> contactoNormalizado.equalsIgnoreCase(normalizarTextoContacto(actual.getContacto()))).findFirst();
     }
 
     @Override public List<Cliente> findAll() {
@@ -65,12 +72,7 @@ public class ClienteFileRepo implements ClienteRepo {
         return clientes;
     }
 
-    @Override public boolean existsByContacto(String contacto) {
-        if (contacto == null) return false;
-        String contactoNormalizado = contacto.trim();
-        if (contactoNormalizado.isEmpty()) return false;
-        return findAll().stream().anyMatch(actual -> contactoNormalizado.equalsIgnoreCase(actual.getContacto()));
-    }
+    @Override public boolean existsByContacto(String contacto) { return findByContacto(contacto).isPresent(); }
 
     @Override public void update(Cliente cliente) {
         Cliente clienteNormalizado = normalizarCliente(cliente);
@@ -82,6 +84,7 @@ public class ClienteFileRepo implements ClienteRepo {
             }
         }
         writeAll(clientes);
+        copiarDatos(clienteNormalizado, cliente);
     }
 
     @Override public void delete(String id) {
@@ -109,10 +112,10 @@ public class ClienteFileRepo implements ClienteRepo {
     private Cliente normalizarCliente(Cliente cliente) {
         Cliente copia = new Cliente();
         copia.setId(cliente.getId());
-        copia.setNombre(cliente.getNombre());
-        copia.setContacto(cliente.getContacto());
-        copia.setMarcaAuto(cliente.getMarcaAuto());
-        copia.setModeloAuto(cliente.getModeloAuto());
+        copia.setNombre(normalizarTextoGeneral(cliente.getNombre()));
+        copia.setContacto(normalizarTextoContacto(cliente.getContacto()));
+        copia.setMarcaAuto(normalizarTextoGeneral(cliente.getMarcaAuto()));
+        copia.setModeloAuto(normalizarTextoGeneral(cliente.getModeloAuto()));
         copia.setAnioAuto(cliente.getAnioAuto());
         return copia;
     }
@@ -120,11 +123,34 @@ public class ClienteFileRepo implements ClienteRepo {
     private Cliente construirCliente(String id, String nombre, String contacto, String marca, String modelo, int anio) {
         Cliente cliente = new Cliente();
         cliente.setId(id);
-        cliente.setNombre(nombre);
-        cliente.setContacto(contacto);
-        cliente.setMarcaAuto(marca);
-        cliente.setModeloAuto(modelo);
+        cliente.setNombre(normalizarTextoGeneral(nombre));
+        cliente.setContacto(normalizarTextoContacto(contacto));
+        cliente.setMarcaAuto(normalizarTextoGeneral(marca));
+        cliente.setModeloAuto(normalizarTextoGeneral(modelo));
         cliente.setAnioAuto(anio);
         return cliente;
+    }
+
+    private String normalizarTextoGeneral(String valor) {
+        if (valor == null) return null;
+        String texto = valor.trim();
+        if (texto.isEmpty()) return texto;
+        return texto;
+    }
+
+    private String normalizarTextoContacto(String valor) {
+        if (valor == null) return null;
+        String texto = valor.trim().replaceAll("\\s+", " ");
+        if (texto.isEmpty()) return texto;
+        return texto;
+    }
+
+    private void copiarDatos(Cliente origen, Cliente destino) {
+        destino.setId(origen.getId());
+        destino.setNombre(origen.getNombre());
+        destino.setContacto(origen.getContacto());
+        destino.setMarcaAuto(origen.getMarcaAuto());
+        destino.setModeloAuto(origen.getModeloAuto());
+        destino.setAnioAuto(origen.getAnioAuto());
     }
 }

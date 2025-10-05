@@ -16,6 +16,7 @@ public interface ClienteRepo {
     abstract void save(Cliente c);
     Optional<Cliente> findById(String id);
     Optional<Cliente> findByNombre(String nombre);
+    Optional<Cliente> findByContacto(String contacto);
     List<Cliente> findAll();
     boolean existsByContacto(String contacto);
     void update(Cliente c);
