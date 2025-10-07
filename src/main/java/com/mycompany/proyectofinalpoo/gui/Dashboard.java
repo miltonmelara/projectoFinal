@@ -29,6 +29,8 @@ public class Dashboard extends JFrame {
     private ParteRepo parteRepo;
     private final CardLayout tarjetas = new CardLayout();
     private final JPanel contenido = new JPanel(tarjetas);
+    private VistaClientes vistaClientes;
+    private VistaCalendario vistaCalendario;
 
     public Dashboard() {
         Tema.aplicar();
@@ -56,10 +58,23 @@ btnBuscar.setContentAreaFilled(false);
 btnBuscar.setBorder(BorderFactory.createEmptyBorder(8,14,8,14));
 derecha.add(buscador, BorderLayout.CENTER);
 derecha.add(btnBuscar, BorderLayout.EAST);
+btnBuscar.addActionListener(e -> {
+    String q = buscador.getText().trim();
+    tarjetas.show(contenido, "CLI");
+    vistaClientes.aplicarFiltro(q);
+});
+
+buscador.addActionListener(e -> {
+    String q = buscador.getText().trim();
+    tarjetas.show(contenido, "CLI");
+    vistaClientes.aplicarFiltro(q);
+});
+
 
 encabezado.setBorder(BorderFactory.createEmptyBorder(10,10,10,10));
 encabezado.add(titulo, BorderLayout.WEST);
 encabezado.add(derecha, BorderLayout.EAST);
+
 
 
         JPanel lateral = new JPanel();
@@ -90,12 +105,22 @@ lateral.add(bEst);
 lateral.add(bHis);
 
 
-        contenido.add(new VistaCalendario(servicioReserva), "CAL");
-        contenido.add(new VistaClientes(servicioCliente, clienteRepo), "CLI");
+        vistaCalendario = new VistaCalendario(servicioReserva);
+vistaClientes = new VistaClientes(servicioCliente, clienteRepo);
+contenido.add(vistaCalendario, "CAL");
+contenido.add(vistaClientes, "CLI");
+
+
 
         bCal.addActionListener(e -> tarjetas.show(contenido, "CAL"));
         bCli.addActionListener(e -> tarjetas.show(contenido, "CLI"));
-        bRes.addActionListener(e -> new FormularioReserva(servicioReserva, clienteRepo, servicioRepo, parteRepo, reservaRepo).setVisible(true));
+        bRes.addActionListener(e -> {
+    FormularioReserva f = new FormularioReserva(servicioReserva, clienteRepo, servicioRepo, parteRepo, reservaRepo);
+    f.setAlGuardar(() -> vistaCalendario.refrescarDesdeExterno());
+    f.setVisible(true);
+});
+
+
         bInv.addActionListener(e -> new FormularioInventario(servicioInventario, parteRepo).setVisible(true));
         bEst.addActionListener(e -> new FormularioEstadoReserva(servicioReserva, reservaRepo, clienteRepo, servicioRepo).setVisible(true));
         bHis.addActionListener(e -> new FormularioHistorial(servicioCliente, clienteRepo).setVisible(true));

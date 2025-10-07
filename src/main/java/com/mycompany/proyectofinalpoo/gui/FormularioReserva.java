@@ -28,6 +28,7 @@ public class FormularioReserva extends JFrame {
     private ServicioRepo servicioRepo;
     private ParteRepo parteRepo;
     private ReservaRepo reservaRepo;
+    private Runnable alGuardar;
     
     private JComboBox<ClienteItem> cmbClientes;
     private JComboBox<ServicioItem> cmbServicios;
@@ -319,6 +320,10 @@ panel.add(panelCliente, gbc);
         // Configurar fecha inicial (mañana)
         spnFecha.setValue(java.sql.Date.valueOf(LocalDate.now().plusDays(1)));
     }
+    
+    public void setAlGuardar(Runnable r) {
+    this.alGuardar = r;
+}
     
     private void configurarValidaciones() {
         actualizarVistaPrevia();
@@ -693,7 +698,8 @@ panel.add(panelCliente, gbc);
         try {
             servicioReserva.deleteReserva(reservaId);
             System.out.println("Reserva eliminada: " + cliente + " - " + fecha);
-            cargarReservasExistentes(); // Recargar la tabla
+            cargarReservasExistentes();
+            if (alGuardar != null) alGuardar.run();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error al eliminar reserva: " + ex.getMessage(), 
                 "Error", JOptionPane.ERROR_MESSAGE);
@@ -775,6 +781,7 @@ if (!mecanicoValido) {
                                "Mecánico: " + mecanico);
             
             limpiarCampos();
+            if (alGuardar != null) alGuardar.run();
             
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), 
