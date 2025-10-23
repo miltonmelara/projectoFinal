@@ -12,7 +12,9 @@ import java.util.Objects;
 import com.mycompany.proyectofinalpoo.Parte;
 import com.mycompany.proyectofinalpoo.Reserva;
 import com.mycompany.proyectofinalpoo.ReservaEstado;
+import com.mycompany.proyectofinalpoo.RolUsuario;
 import com.mycompany.proyectofinalpoo.Servicio;
+import com.mycompany.proyectofinalpoo.Usuario;
 import com.mycompany.proyectofinalpoo.repo.ParteRepo;
 import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
 import com.mycompany.proyectofinalpoo.repo.ServicioRepo;
@@ -39,6 +41,7 @@ public class ServicioReporteInventario {
      * @throws ValidationException si alguna de las fechas es nula
      */
     public ReporteInventario generarReporte(LocalDate fechaInicio, LocalDate fechaFin) {
+        requireAdmin();
         if (fechaInicio == null || fechaFin == null) throw new ValidationException("rango de fechas requerido");
 
         LocalDate inicio = fechaInicio;
@@ -119,5 +122,10 @@ public class ServicioReporteInventario {
             if (parte.getId() != null) inventario.put(parte.getId(), parte);
         }
         return inventario;
+    }
+
+    private void requireAdmin() {
+        Usuario usuario = SecurityContext.requireUser();
+        ControlAcceso.requireRol(usuario, RolUsuario.ADMIN);
     }
 }

@@ -1,7 +1,6 @@
 /*
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  */
-
 package com.mycompany.proyectofinalpoo;
 
 import java.nio.file.Path;
@@ -15,15 +14,14 @@ import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
 import com.mycompany.proyectofinalpoo.repo.ParteRepo;
 import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
 import com.mycompany.proyectofinalpoo.repo.ServicioRepo;
+import com.mycompany.proyectofinalpoo.repo.UsuarioRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ClienteFileRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ParteFileRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ReservaFileRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ServicioFileRepo;
+import com.mycompany.proyectofinalpoo.repo.file.UsuarioFileRepo;
+import com.mycompany.proyectofinalpoo.repo.servicios.ServicioUsuarios;
 
-/**
- *
- * @author Bebe
- */
 public class ProyectoFinalPOO {
     public static void main(String[] args) {
         Path dataDir = Path.of("data");
@@ -31,11 +29,13 @@ public class ProyectoFinalPOO {
         ParteRepo parteRepo = new ParteFileRepo(dataDir);
         ServicioRepo servicioRepo = new ServicioFileRepo(dataDir);
         ReservaRepo reservaRepo = new ReservaFileRepo(dataDir);
+        UsuarioRepo usuarioRepo = new UsuarioFileRepo(dataDir);
 
-        seedIfEmpty(clienteRepo, parteRepo, servicioRepo, reservaRepo);
+        seedDatos(clienteRepo, parteRepo, servicioRepo, reservaRepo);
+        seedUsuarios(usuarioRepo);
     }
 
-    private static void seedIfEmpty(ClienteRepo cr, ParteRepo pr, ServicioRepo sr, ReservaRepo rr) {
+    private static void seedDatos(ClienteRepo cr, ParteRepo pr, ServicioRepo sr, ReservaRepo rr) {
         if (cr.findAll().isEmpty()) {
             cr.save(new Cliente(null, "Ana Pérez", "555111", "Toyota", "Corolla", 2019));
             cr.save(new Cliente(null, "Luis Gómez", "555222", "Honda", "Civic", 2020));
@@ -49,7 +49,6 @@ public class ProyectoFinalPOO {
             pr.save(new Parte(null, "FILTRO-AIRE", "Filtros", 15, 10.0, 6.0));
         }
         if (sr.findAll().isEmpty()) {
-            // map by nombre -> id
             Map<String,String> idByNombre = new HashMap<>();
             for (Parte p : pr.findAll()) idByNombre.put(p.getNombre(), p.getId());
 
@@ -74,51 +73,8 @@ public class ProyectoFinalPOO {
         }
     }
 
-    private static void AddParte(ServicioInventario inv) {
-        System.out.print("Nombre: "); String nombre = SC.nextLine();
-        System.out.print("Categoria: "); String cat = SC.nextLine();
-        System.out.print("Cantidad: "); int cant = Integer.parseInt(SC.nextLine());
-        System.out.print("Precio unitario: "); double pu = Double.parseDouble(SC.nextLine());
-        System.out.print("Costo: "); double costo = Double.parseDouble(SC.nextLine());
-        Parte p = inv.addParte(nombre, cat, cant, pu, costo);
-        System.out.println("Parte agregada: " + p);
+    private static void seedUsuarios(UsuarioRepo usuarioRepo) {
+        ServicioUsuarios servicioUsuarios = new ServicioUsuarios(usuarioRepo);
+        servicioUsuarios.seedAdminDefault("admin", "admin123");
     }
-
-    private static void CrearReserva(ServicioReserva reservas, ClienteRepo cr, ServicioRepo sr) {
-        List<Cliente> cs = cr.findAll();
-        System.out.println("Clientes:");
-        for (int i = 0; i < cs.size(); i++) System.out.printf("%d) %s (%s)\n", i+1, cs.get(i).getNombre(), cs.get(i).getId());
-        System.out.print("Elija cliente #: "); int ci = Integer.parseInt(SC.nextLine()) - 1;
-        List<Servicio> ss = sr.findAll();
-        System.out.println("Servicios:");
-        for (int i = 0; i < ss.size(); i++) System.out.printf("%d) %s (%s)\n", i+1, ss.get(i).getNombre(), ss.get(i).getId());
-        System.out.print("Elija servicio #: "); int si = Integer.parseInt(SC.nextLine()) - 1;
-        System.out.print("Mecánico: "); String mec = SC.nextLine();
-        LocalDateTime fecha = LocalDateTime.now().plusDays(1);
-        Reserva r = reservas.createReserva(cs.get(ci).getId(), ss.get(si).getId(), fecha, mec);
-        System.out.println("Reserva creada: " + r);
-    }
-
-    private static void CambiarEstado(ServicioReserva reservas, ReservaRepo rr) {
-        List<Reserva> rs = rr.findAll();
-        for (int i = 0; i < rs.size(); i++) System.out.printf("%d) %s -> %s (%s)\n", i+1, rs.get(i).getId(), rs.get(i).getEstado(), rs.get(i).getServicioId());
-        System.out.print("Elija reserva #: "); int idx = Integer.parseInt(SC.nextLine()) - 1;
-        System.out.print("Nuevo estado (PROGRAMADA,EN_PROGRESO,FINALIZADA,ENTREGADA): ");
-        ReservaEstado ne = ReservaEstado.valueOf(SC.nextLine().trim());
-        Reserva r = reservas.changeEstado(rs.get(idx).getId(), ne);
-        System.out.println("Actualizada: " + r);
-    }
-
-    private static void Historial(ServicioCliente cs, ClienteRepo cr) {
-        List<Cliente> all = cr.findAll();
-        for (int i = 0; i < all.size(); i++) System.out.printf("%d) %s (%s)\n", i+1, all.get(i).getNombre(), all.get(i).getId());
-        System.out.print("Elija cliente #: "); int idx = Integer.parseInt(SC.nextLine()) - 1;
-        HistorialCliente h = cs.getHistorial(all.get(idx).getId());
-        System.out.println("Cliente: " + h.getCliente());
-        System.out.println("Reservas: ");
-        for (Reserva r : h.getReservas()) System.out.println(" - " + r);
-        System.out.println("Servicios: ");
-        for (Servicio s : h.getServicios()) System.out.println(" - " + s);
-    }
-
 }

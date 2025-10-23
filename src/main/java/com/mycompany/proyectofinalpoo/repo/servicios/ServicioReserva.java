@@ -16,13 +16,16 @@ import java.util.Objects;
 import com.mycompany.proyectofinalpoo.Parte;
 import com.mycompany.proyectofinalpoo.Reserva;
 import com.mycompany.proyectofinalpoo.ReservaEstado;
+import com.mycompany.proyectofinalpoo.RolUsuario;
 import com.mycompany.proyectofinalpoo.Servicio;
+import com.mycompany.proyectofinalpoo.Usuario;
 import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
 import com.mycompany.proyectofinalpoo.repo.ParteRepo;
 import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
 import com.mycompany.proyectofinalpoo.repo.ServicioRepo;
 import com.mycompany.proyectofinalpoo.repo.servicios.dto.CalendarioReservas;
 import com.mycompany.proyectofinalpoo.repo.servicios.dto.DiaCalendario;
+import com.mycompany.proyectofinalpoo.repo.servicios.dto.ResumenReservasGlobal;
 
 /**
  *
@@ -43,6 +46,7 @@ public class ServicioReserva {
 
     /** Crea una reserva validando existencia de cliente y servicio. */
     public Reserva createReserva(String clienteId, String servicioId, LocalDateTime fecha, String mecanico) {
+        requireAdmin();
         if (clienteRepo.findById(clienteId).isEmpty()) throw new NotFoundException("Cliente no existe: " + clienteId);
         if (servicioRepo.findById(servicioId).isEmpty()) throw new NotFoundException("Servicio no existe: " + servicioId);
         if (fecha == null) throw new ValidationException("fecha requerida");
@@ -72,6 +76,7 @@ public class ServicioReserva {
 
     /** Actualiza los datos básicos de una reserva existente. */
     public Reserva updateReserva(String reservaId, ActualizarReservaRequest cambios) {
+        requireAdmin();
         if (reservaId == null || reservaId.trim().isEmpty()) throw new ValidationException("id de reserva requerido");
         if (cambios == null) throw new ValidationException("datos de actualización requeridos");
 
@@ -110,21 +115,25 @@ public class ServicioReserva {
         return reserva;
     }
 
-    public void deleteReserva(String id) { reservaRepo.delete(id); }
+    public void deleteReserva(String id) {
+        requireAdmin();
+        reservaRepo.delete(id);
+    }
 
     /**
      * Cambia el estado de la reserva. Si pasa a FINALIZADA o ENTREGADA por primera vez,
      * deduce inventario basado en el servicio.
      */
     public Reserva changeEstado(String reservaId, ReservaEstado nuevoEstado) {
-    Reserva reserva = reservaRepo.findById(reservaId).orElseThrow(() -> new NotFoundException("Reserva no encontrada: " + reservaId));
-    ReservaEstado estadoAnterior = reserva.getEstado();
-    reserva.setEstado(nuevoEstado);
+        requireAdmin();
+        Reserva reserva = reservaRepo.findById(reservaId).orElseThrow(() -> new NotFoundException("Reserva no encontrada: " + reservaId));
+        ReservaEstado estadoAnterior = reserva.getEstado();
+        reserva.setEstado(nuevoEstado);
         // Bonus: deducir inventario cuando FINALIZADA o ENTREGADA
-    boolean debeDeducir = (nuevoEstado == ReservaEstado.FINALIZADA || nuevoEstado == ReservaEstado.ENTREGADA)
-        && !(estadoAnterior == ReservaEstado.FINALIZADA || estadoAnterior == ReservaEstado.ENTREGADA);
-    if (debeDeducir) {
-        Servicio servicio = servicioRepo.findById(reserva.getServicioId()).orElseThrow(() -> new NotFoundException("Servicio no encontrado: " + reserva.getServicioId()));
+        boolean debeDeducir = (nuevoEstado == ReservaEstado.FINALIZADA || nuevoEstado == ReservaEstado.ENTREGADA)
+            && !(estadoAnterior == ReservaEstado.FINALIZADA || estadoAnterior == ReservaEstado.ENTREGADA);
+        if (debeDeducir) {
+            Servicio servicio = servicioRepo.findById(reserva.getServicioId()).orElseThrow(() -> new NotFoundException("Servicio no encontrado: " + reserva.getServicioId()));
             Map<String,Integer> req = servicio.getPartesRequeridas();
             if (!req.isEmpty()) {
                 // validar stock
@@ -137,7 +146,7 @@ public class ServicioReserva {
                     if (p == null || p.getCantidad() < need) faltantes.add(e.getKey() + "(req=" + need + ")");
                 }
                 if (!faltantes.isEmpty()) {
-            reserva.setEstado(estadoAnterior); // revert
+                    reserva.setEstado(estadoAnterior); // revert
                     throw new StockException("Stock insuficiente para: " + String.join(", ", faltantes));
                 }
                 // deducir
@@ -148,13 +157,17 @@ public class ServicioReserva {
                 }
             }
         }
-    reservaRepo.update(reserva);
-    return reserva;
+        reservaRepo.update(reserva);
+        return reserva;
     }
 
-    public List<Reserva> calendarioPorDia(LocalDate dia) { return reservaRepo.findByFecha(dia); }
+    public List<Reserva> calendarioPorDia(LocalDate dia) {
+        requireAdmin();
+        return reservaRepo.findByFecha(dia);
+    }
 
     public DiaCalendario obtenerDiaCalendario(LocalDate fecha, String mecanico, ReservaEstado estado) {
+        requireAdmin();
         if (fecha == null) throw new ValidationException("fecha requerida");
         String filtroMecanico = normalizarFiltroMecanico(mecanico);
         List<Reserva> reservas = filtrarReservas(reservaRepo.findByFecha(fecha), filtroMecanico, estado);
@@ -162,6 +175,7 @@ public class ServicioReserva {
     }
 
     public CalendarioReservas generarCalendario(LocalDate fechaInicio, LocalDate fechaFin, String mecanico, ReservaEstado estado) {
+        requireAdmin();
         if (fechaInicio == null || fechaFin == null) throw new ValidationException("rango requerido");
         LocalDate inicio = fechaInicio;
         LocalDate fin = fechaFin;
@@ -193,6 +207,24 @@ public class ServicioReserva {
             totalEntregadas += dia.obtenerTotalEntregadas();
         }
         return new CalendarioReservas(inicio, fin, dias, totalReservas, totalProgramadas, totalEnProgreso, totalFinalizadas, totalEntregadas);
+    }
+
+    public ResumenReservasGlobal obtenerResumenGlobal() {
+        requireAdmin();
+        List<Reserva> reservas = reservaRepo.findAll();
+        int total = reservas.size();
+        int programadas = 0;
+        int enProgreso = 0;
+        int finalizadas = 0;
+        int entregadas = 0;
+        for (Reserva reserva : reservas) {
+            ReservaEstado estado = reserva.getEstado();
+            if (estado == ReservaEstado.PROGRAMADA) programadas++;
+            else if (estado == ReservaEstado.EN_PROGRESO) enProgreso++;
+            else if (estado == ReservaEstado.FINALIZADA) finalizadas++;
+            else if (estado == ReservaEstado.ENTREGADA) entregadas++;
+        }
+        return new ResumenReservasGlobal(total, programadas, enProgreso, finalizadas, entregadas);
     }
 
     private Map<LocalDate, List<Reserva>> agruparPorFecha(List<Reserva> reservas) {
@@ -248,5 +280,10 @@ public class ServicioReserva {
         String result = (valor == null) ? null : valor.trim();
         if (result == null || result.isEmpty()) throw new ValidationException(campo + " requerido");
         return result;
+    }
+
+    private void requireAdmin() {
+        Usuario usuario = SecurityContext.requireUser();
+        ControlAcceso.requireRol(usuario, RolUsuario.ADMIN);
     }
 }

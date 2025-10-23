@@ -12,14 +12,14 @@ import java.util.Objects;
 public class Usuario {
     private String username;
     private String password;
-    private String role;
+    private RolUsuario rol;
 
     public Usuario() {}
 
-    public Usuario(String username, String password, String role) {
-    this.username = username;
-    this.password = password;
-    this.role = role;
+    public Usuario(String username, String password, RolUsuario rol) {
+        setUsername(username);
+        setPassword(password);
+        setRol(rol);
     }
 
     public String getUsername() { return username; }
@@ -34,16 +34,24 @@ public class Usuario {
         this.password = password;
     }
 
-    public String getRole() { return role; }
+    public RolUsuario getRol() { return rol; }
+    public void setRol(RolUsuario rol) {
+        if (rol == null) throw new IllegalArgumentException("rol requerido");
+        this.rol = rol;
+    }
+
     public void setRole(String role) {
-        if (role == null || role.isBlank()) throw new IllegalArgumentException("role requerido");
-        this.role = role.trim();
+        setRol(RolUsuario.fromNombre(role));
+    }
+
+    public String getRole() {
+        return rol != null ? rol.name() : null;
     }
 
     @Override public String toString() {
         return "Usuario{" +
                 "username='" + username + '\'' +
-                ", role='" + role + '\'' +
+                ", rol='" + rol + '\'' +
                 '}';
     }
 

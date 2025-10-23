@@ -12,7 +12,9 @@ import java.util.Objects;
 import com.mycompany.proyectofinalpoo.Cliente;
 import com.mycompany.proyectofinalpoo.Reserva;
 import com.mycompany.proyectofinalpoo.ReservaEstado;
+import com.mycompany.proyectofinalpoo.RolUsuario;
 import com.mycompany.proyectofinalpoo.Servicio;
+import com.mycompany.proyectofinalpoo.Usuario;
 import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
 import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
 import com.mycompany.proyectofinalpoo.repo.ServicioRepo;
@@ -111,6 +113,7 @@ public class ServicioCliente {
     }
 
     public Cliente crearCliente(NuevoClienteRequest solicitud) {
+        requireAdmin();
         if (solicitud == null) throw new ValidationException("solicitud requerida");
         DatosCliente datos = validarDatosCliente(null, solicitud.getNombre(), solicitud.getContacto(), solicitud.getMarcaAuto(), solicitud.getModeloAuto(), solicitud.getAnioAuto());
         Cliente cliente = new Cliente();
@@ -120,6 +123,7 @@ public class ServicioCliente {
     }
 
     public Cliente actualizarCliente(String idCliente, ActualizarClienteRequest solicitud) {
+        requireAdmin();
         if (idCliente == null || idCliente.trim().isEmpty()) throw new ValidationException("id requerido");
         if (solicitud == null) throw new ValidationException("solicitud requerida");
         String idNormalizado = idCliente.trim();
@@ -131,6 +135,7 @@ public class ServicioCliente {
     }
 
     public Cliente eliminarCliente(String idCliente) {
+        requireAdmin();
         if (idCliente == null || idCliente.trim().isEmpty()) throw new ValidationException("id requerido");
         String idNormalizado = idCliente.trim();
         Cliente cliente = clienteRepo.findById(idNormalizado).orElseThrow(() -> new NotFoundException("cliente no encontrado"));
@@ -142,6 +147,7 @@ public class ServicioCliente {
     }
 
     public HistorialCliente getHistorial(String clienteId) {
+        SecurityContext.requireUser();
         Cliente cliente = clienteRepo.findById(clienteId).orElseThrow(() -> new NotFoundException("Cliente no encontrado: " + clienteId));
         List<Reserva> reservas = reservaRepo.findByClienteId(clienteId);
         List<Servicio> servicios = new ArrayList<>();
@@ -182,5 +188,10 @@ public class ServicioCliente {
             cliente.setModeloAuto(modelo);
             cliente.setAnioAuto(anio);
         }
+    }
+
+    private void requireAdmin() {
+        Usuario usuario = SecurityContext.requireUser();
+        ControlAcceso.requireRol(usuario, RolUsuario.ADMIN);
     }
 }
