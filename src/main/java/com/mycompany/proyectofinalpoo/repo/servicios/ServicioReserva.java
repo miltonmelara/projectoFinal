@@ -125,8 +125,23 @@ public class ServicioReserva {
      * deduce inventario basado en el servicio.
      */
     public Reserva changeEstado(String reservaId, ReservaEstado nuevoEstado) {
-        requireAdmin();
+        Usuario usuario = SecurityContext.requireUser();
+        boolean esAdmin = ControlAcceso.tieneRol(usuario, RolUsuario.ADMIN);
+        boolean esMecanico = ControlAcceso.tieneRol(usuario, RolUsuario.MECANICO);
+        if (!esAdmin && !esMecanico) throw new AutorizacionException("permiso denegado para cambiar estado de reserva");
+
         Reserva reserva = reservaRepo.findById(reservaId).orElseThrow(() -> new NotFoundException("Reserva no encontrada: " + reservaId));
+
+        if (esMecanico) {
+            String asignado = reserva.getMecanicoAsignado();
+            if (asignado == null || !asignado.equalsIgnoreCase(usuario.getUsername())) {
+                throw new AutorizacionException("reservas asignadas a otro mecánico");
+            }
+            if (nuevoEstado == ReservaEstado.PROGRAMADA) {
+                throw new ValidationException("el mecánico no puede regresar la reserva a PROGRAMADA");
+            }
+        }
+
         ReservaEstado estadoAnterior = reserva.getEstado();
         reserva.setEstado(nuevoEstado);
         // Bonus: deducir inventario cuando FINALIZADA o ENTREGADA
@@ -164,6 +179,24 @@ public class ServicioReserva {
     public List<Reserva> calendarioPorDia(LocalDate dia) {
         requireAdmin();
         return reservaRepo.findByFecha(dia);
+    }
+
+    /** Lista las reservas asignadas al usuario autenticado cuando es mecánico. */
+    public List<Reserva> listarReservasAsignadasAlActual() {
+        Usuario usuario = SecurityContext.requireUser();
+        boolean esAdmin = ControlAcceso.tieneRol(usuario, RolUsuario.ADMIN);
+        boolean esMecanico = ControlAcceso.tieneRol(usuario, RolUsuario.MECANICO);
+        if (!esAdmin && !esMecanico) throw new AutorizacionException("rol no autorizado para consultar reservas asignadas");
+        if (esAdmin) {
+            return reservaRepo.findAll();
+        }
+        return reservaRepo.findByMecanico(usuario.getUsername());
+    }
+
+    /** Permite a un administrador consultar reservas asignadas a un mecánico específico. */
+    public List<Reserva> listarReservasPorMecanico(String mecanicoAsignado) {
+        requireAdmin();
+        return reservaRepo.findByMecanico(mecanicoAsignado);
     }
 
     public DiaCalendario obtenerDiaCalendario(LocalDate fecha, String mecanico, ReservaEstado estado) {

@@ -77,6 +77,18 @@ public class ReservaFileRepo implements ReservaRepo {
     return reservas;
     }
 
+    @Override public List<Reserva> findByMecanico(String mecanicoAsignado) {
+        List<Reserva> reservas = new ArrayList<>();
+        if (mecanicoAsignado == null) return reservas;
+        String buscado = mecanicoAsignado.trim();
+        if (buscado.isEmpty()) return reservas;
+        for (Reserva reserva : findAll()) {
+            String actual = reserva.getMecanicoAsignado();
+            if (actual != null && actual.equalsIgnoreCase(buscado)) reservas.add(reserva);
+        }
+        return reservas;
+    }
+
     @Override public List<Reserva> findEntreFechas(LocalDate inicio, LocalDate fin) {
         if (inicio == null || fin == null) return new ArrayList<>();
         LocalDate fechaInicio = inicio;

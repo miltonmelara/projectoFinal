@@ -56,6 +56,14 @@ public class ServicioUsuarios {
         }
     }
 
+    public void seedUsuario(String username, String password, RolUsuario rol) {
+        Optional<Usuario> existente = usuarioRepo.findByUsername(username);
+        if (existente.isEmpty()) {
+            Usuario usuario = construirUsuario(username, password, rol);
+            usuarioRepo.save(usuario);
+        }
+    }
+
     public Usuario obtenerUsuarioActual() {
         return SecurityContext.getCurrentUser();
     }

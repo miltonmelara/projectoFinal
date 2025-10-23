@@ -14,6 +14,7 @@ import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
 import com.mycompany.proyectofinalpoo.repo.ParteRepo;
 import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
 import com.mycompany.proyectofinalpoo.repo.ServicioRepo;
+import com.mycompany.proyectofinalpoo.RolUsuario;
 import com.mycompany.proyectofinalpoo.repo.UsuarioRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ClienteFileRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ParteFileRepo;
@@ -76,5 +77,6 @@ public class ProyectoFinalPOO {
     private static void seedUsuarios(UsuarioRepo usuarioRepo) {
         ServicioUsuarios servicioUsuarios = new ServicioUsuarios(usuarioRepo);
         servicioUsuarios.seedAdminDefault("admin", "admin123");
+        servicioUsuarios.seedUsuario("mecanico1", "mec123", RolUsuario.MECANICO);
     }
 }
