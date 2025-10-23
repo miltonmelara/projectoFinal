@@ -51,9 +51,61 @@ public class ServicioReserva {
     return reserva;
     }
 
-    /** Actualiza una reserva existente. */
-    public Reserva updateReserva(Reserva reserva) {
-        if (reserva.getId() == null) throw new ValidationException("id requerido para actualizar reserva");
+    public static class ActualizarReservaRequest {
+        private final String clienteId;
+        private final String servicioId;
+        private final LocalDateTime fecha;
+        private final String mecanico;
+
+        public ActualizarReservaRequest(String clienteId, String servicioId, LocalDateTime fecha, String mecanico) {
+            this.clienteId = clienteId;
+            this.servicioId = servicioId;
+            this.fecha = fecha;
+            this.mecanico = mecanico;
+        }
+
+        public String getClienteId() { return clienteId; }
+        public String getServicioId() { return servicioId; }
+        public LocalDateTime getFecha() { return fecha; }
+        public String getMecanico() { return mecanico; }
+    }
+
+    /** Actualiza los datos básicos de una reserva existente. */
+    public Reserva updateReserva(String reservaId, ActualizarReservaRequest cambios) {
+        if (reservaId == null || reservaId.trim().isEmpty()) throw new ValidationException("id de reserva requerido");
+        if (cambios == null) throw new ValidationException("datos de actualización requeridos");
+
+        Reserva reserva = reservaRepo.findById(reservaId.trim())
+                .orElseThrow(() -> new NotFoundException("Reserva no encontrada: " + reservaId));
+
+        if (reserva.getEstado() == ReservaEstado.FINALIZADA || reserva.getEstado() == ReservaEstado.ENTREGADA) {
+            throw new ValidationException("no se puede actualizar una reserva finalizada o entregada");
+        }
+
+        if (cambios.getClienteId() != null) {
+            String nuevoCliente = normalizarId(cambios.getClienteId(), "cliente");
+            clienteRepo.findById(nuevoCliente)
+                    .orElseThrow(() -> new NotFoundException("Cliente no existe: " + nuevoCliente));
+            reserva.setClienteId(nuevoCliente);
+        }
+
+        if (cambios.getServicioId() != null) {
+            String nuevoServicio = normalizarId(cambios.getServicioId(), "servicio");
+            servicioRepo.findById(nuevoServicio)
+                    .orElseThrow(() -> new NotFoundException("Servicio no existe: " + nuevoServicio));
+            reserva.setServicioId(nuevoServicio);
+        }
+
+        if (cambios.getFecha() != null) {
+            reserva.setFecha(cambios.getFecha());
+        }
+
+        if (cambios.getMecanico() != null) {
+            String mecanico = cambios.getMecanico().trim();
+            if (mecanico.isEmpty()) throw new ValidationException("mecánico no puede ser vacío");
+            reserva.setMecanicoAsignado(mecanico);
+        }
+
         reservaRepo.update(reserva);
         return reserva;
     }
@@ -190,5 +242,11 @@ public class ServicioReserva {
             else if (estado == ReservaEstado.ENTREGADA) entregadas++;
         }
         return new DiaCalendario(fecha, reservas, programadas, enProgreso, finalizadas, entregadas);
+    }
+
+    private String normalizarId(String valor, String campo) {
+        String result = (valor == null) ? null : valor.trim();
+        if (result == null || result.isEmpty()) throw new ValidationException(campo + " requerido");
+        return result;
     }
 }

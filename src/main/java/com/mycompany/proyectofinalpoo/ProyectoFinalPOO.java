@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 
 import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
 import com.mycompany.proyectofinalpoo.repo.ParteRepo;
@@ -20,18 +19,12 @@ import com.mycompany.proyectofinalpoo.repo.file.ClienteFileRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ParteFileRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ReservaFileRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ServicioFileRepo;
-import com.mycompany.proyectofinalpoo.repo.servicios.ServicioCliente;
-import com.mycompany.proyectofinalpoo.repo.servicios.ServicioInventario;
-import com.mycompany.proyectofinalpoo.repo.servicios.ServicioReserva;
-import com.mycompany.proyectofinalpoo.repo.servicios.dto.HistorialCliente;
 
 /**
  *
  * @author Bebe
  */
 public class ProyectoFinalPOO {
-    private static final Scanner SC = new Scanner(System.in);
-
     public static void main(String[] args) {
         Path dataDir = Path.of("data");
         ClienteRepo clienteRepo = new ClienteFileRepo(dataDir);
@@ -40,34 +33,6 @@ public class ProyectoFinalPOO {
         ReservaRepo reservaRepo = new ReservaFileRepo(dataDir);
 
         seedIfEmpty(clienteRepo, parteRepo, servicioRepo, reservaRepo);
-
-        ServicioInventario inv = new ServicioInventario(parteRepo);
-        ServicioReserva reservas = new ServicioReserva(reservaRepo, clienteRepo, servicioRepo, parteRepo);
-        ServicioCliente clientes = new ServicioCliente(clienteRepo, reservaRepo, servicioRepo);
-
-        while (true) {
-            System.out.println("=== Taller CLI ===");
-            System.out.println("1) Agregar parte al inventario");
-            System.out.println("2) Crear reserva");
-            System.out.println("3) Cambiar estado de reserva");
-            System.out.println("4) Mostrar historial de cliente");
-            System.out.println("0) Salir");
-            System.out.print("Opción: ");
-            String op = SC.nextLine().trim();
-            try {
-                switch (op) {
-                    case "1": AddParte(inv); break;
-                    case "2": CrearReserva(reservas, clienteRepo, servicioRepo); break;
-                    case "3": CambiarEstado(reservas, reservaRepo); break;
-                    case "4": Historial(clientes, clienteRepo); break;
-                    case "0": System.out.println("Adiós"); return;
-                    default: System.out.println("Opción inválida");
-                }
-            } catch (RuntimeException ex) {
-                System.out.println("ERROR: " + ex.getMessage());
-            }
-            System.out.println();
-        }
     }
 
     private static void seedIfEmpty(ClienteRepo cr, ParteRepo pr, ServicioRepo sr, ReservaRepo rr) {
@@ -155,4 +120,5 @@ public class ProyectoFinalPOO {
         System.out.println("Servicios: ");
         for (Servicio s : h.getServicios()) System.out.println(" - " + s);
     }
+
 }
