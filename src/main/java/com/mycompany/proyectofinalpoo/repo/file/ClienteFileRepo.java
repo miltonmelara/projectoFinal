@@ -15,6 +15,9 @@ import com.mycompany.proyectofinalpoo.Cliente;
 import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
 import com.mycompany.proyectofinalpoo.util.CsvUtil;
 
+
+
+
 /**
  *
  * @author Bebe
@@ -27,6 +30,7 @@ public class ClienteFileRepo implements ClienteRepo {
     public ClienteFileRepo(Path dataDir) {
         this.csvFilePath = dataDir.resolve("clientes.csv");
         CsvUtil.ensureHeaders(csvFilePath, HEADERS, SEP);
+        migrarIdsVacios();
     }
 
     @Override public void save(Cliente cliente) {
@@ -121,6 +125,21 @@ public class ClienteFileRepo implements ClienteRepo {
         }
         CsvUtil.writeAll(csvFilePath, filas, SEP);
     }
+    
+    private void migrarIdsVacios() {
+    java.util.List<com.mycompany.proyectofinalpoo.Cliente> clientes = findAll();
+    boolean cambiado = false;
+    for (com.mycompany.proyectofinalpoo.Cliente c : clientes) {
+        if (c.getId() == null || c.getId().trim().isEmpty()) {
+            c.setId(java.util.UUID.randomUUID().toString());
+            cambiado = true;
+        }
+    }
+    if (cambiado) writeAll(clientes);
+}
+
+  
+
 
     private Cliente normalizarCliente(Cliente cliente) {
         Cliente copia = new Cliente();

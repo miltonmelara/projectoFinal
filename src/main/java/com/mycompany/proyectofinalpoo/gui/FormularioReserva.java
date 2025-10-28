@@ -769,6 +769,24 @@ spnFecha.setEditor(editorFecha);
             if (confirmacion != JOptionPane.YES_OPTION) return;
         }
 
+        java.util.List<com.mycompany.proyectofinalpoo.Reserva> existentes;
+        try {
+            existentes = (reservaRepo != null)
+                ? reservaRepo.findByMecanico(mecanico)
+                : servicioReserva.listarReservasPorMecanico(mecanico);
+        } catch (Exception ex) {
+            existentes = java.util.Collections.emptyList();
+        }
+
+        for (com.mycompany.proyectofinalpoo.Reserva r : existentes) {
+            if (fechaHora.equals(r.getFecha())) {
+                JOptionPane.showMessageDialog(this,
+                    "El mecánico " + mecanico + " ya tiene una reserva a esa hora.\nSeleccione otra hora.",
+                    "Conflicto de horario", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        }
+
         Reserva nuevaReserva = servicioReserva.createReserva(
             clienteItem.cliente.getId(),
             servicioItem.servicio.getId(),
@@ -790,6 +808,7 @@ spnFecha.setEditor(editorFecha);
         JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
     }
 }
+
 
 
     

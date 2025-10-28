@@ -104,6 +104,8 @@ public class ServicioCliente {
         if (resultado.isEmpty()) return null;
         return resultado;
     }
+    
+    
 
     private String normalizarContacto(String contacto) {
         if (contacto == null) return null;
@@ -111,6 +113,33 @@ public class ServicioCliente {
         if (resultado.isEmpty()) return null;
         return resultado;
     }
+
+    public Cliente eliminarCliente(String idCliente, boolean forzar) {
+    requireAdmin();
+    if (idCliente == null || idCliente.trim().isEmpty()) throw new ValidationException("id requerido");
+    String id = idCliente.trim();
+
+    Cliente cliente = clienteRepo.findById(id).orElseThrow(() -> new NotFoundException("cliente no encontrado"));
+    java.util.List<Reserva> reservas = reservaRepo.findByClienteId(id);
+
+    if (!forzar) {
+        if (tieneReservasActivas(reservas)) throw new ValidationException("cliente con reservas activas");
+    } else {
+        if (reservas != null) {
+            for (Reserva r : reservas) {
+                ReservaEstado e = r.getEstado();
+                if (e == ReservaEstado.PROGRAMADA || e == ReservaEstado.EN_PROGRESO) {
+                    r.setEstado(com.mycompany.proyectofinalpoo.ReservaEstado.FINALIZADA);
+                    reservaRepo.update(r);
+                }
+            }
+        }
+    }
+
+    boolean eliminado = clienteRepo.delete(id);
+    if (!eliminado) throw new NotFoundException("cliente no encontrado");
+    return cliente;
+}
 
     public Cliente crearCliente(NuevoClienteRequest solicitud) {
         requireAdmin();

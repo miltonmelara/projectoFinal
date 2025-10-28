@@ -129,17 +129,37 @@ public class VistaClientes extends JPanel {
     });
 
     btnEliminar.addActionListener(e -> {
-        if (idSeleccionado == null) {
-            JOptionPane.showMessageDialog(this, "Selecciona un cliente en la tabla.", "Sin selección", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        int r = JOptionPane.showConfirmDialog(this, "¿Eliminar cliente seleccionado?", "Confirmar", JOptionPane.YES_NO_OPTION);
-        if (r != JOptionPane.YES_OPTION) return;
-        servicioCliente.eliminarCliente(idSeleccionado);
+    if (idSeleccionado == null) {
+        JOptionPane.showMessageDialog(this, "Selecciona un cliente en la tabla.", "Sin selección", JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+    int r = JOptionPane.showConfirmDialog(this, "¿Eliminar cliente seleccionado?", "Confirmar", JOptionPane.YES_NO_OPTION);
+    if (r != JOptionPane.YES_OPTION) return;
+    try {
+        servicioCliente.eliminarCliente(idSeleccionado); // intento normal
         cargarTabla(clienteRepo.findAll());
         limpiar();
         JOptionPane.showMessageDialog(this, "Cliente eliminado.", "OK", JOptionPane.INFORMATION_MESSAGE);
-    });
+    } catch (RuntimeException ex1) {
+        String msg = ex1.getMessage() == null ? "" : ex1.getMessage().toLowerCase();
+        if (msg.contains("reservas activas")) {
+            int r2 = JOptionPane.showConfirmDialog(this, "El cliente tiene reservas activas.\n¿Cancelar esas reservas y eliminar de todas formas?", "Confirmar", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (r2 == JOptionPane.YES_OPTION) {
+                try {
+                    servicioCliente.eliminarCliente(idSeleccionado, true); // forzar
+                    cargarTabla(clienteRepo.findAll());
+                    limpiar();
+                    JOptionPane.showMessageDialog(this, "Cliente eliminado.", "OK", JOptionPane.INFORMATION_MESSAGE);
+                } catch (RuntimeException ex2) {
+                    JOptionPane.showMessageDialog(this, "Error: " + ex2.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Error: " + ex1.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+});
+
 
     TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(model);
     tabla.setRowSorter(sorter);
