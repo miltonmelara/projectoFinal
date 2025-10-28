@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.mycompany.proyectofinalpoo.repo.servicios;
 
 import java.time.LocalDate;
@@ -11,7 +7,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import com.mycompany.proyectofinalpoo.Parte;
 import com.mycompany.proyectofinalpoo.Reserva;
@@ -23,36 +18,41 @@ import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
 import com.mycompany.proyectofinalpoo.repo.ParteRepo;
 import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
 import com.mycompany.proyectofinalpoo.repo.ServicioRepo;
+import com.mycompany.proyectofinalpoo.repo.UsuarioRepo;
 import com.mycompany.proyectofinalpoo.repo.servicios.dto.CalendarioReservas;
 import com.mycompany.proyectofinalpoo.repo.servicios.dto.DiaCalendario;
 import com.mycompany.proyectofinalpoo.repo.servicios.dto.ResumenReservasGlobal;
 
-/**
- *
- * @author Bebe
- */
 public class ServicioReserva {
     private final ReservaRepo reservaRepo;
     private final ClienteRepo clienteRepo;
     private final ServicioRepo servicioRepo;
     private final ParteRepo parteRepo;
+    private final UsuarioRepo usuarioRepo;
+    private final com.mycompany.proyectofinalpoo.repo.ConsumoParteRepo consumoRepo;
 
-    public ServicioReserva(ReservaRepo reservaRepo, ClienteRepo clienteRepo, ServicioRepo servicioRepo, ParteRepo parteRepo) {
-        this.reservaRepo = Objects.requireNonNull(reservaRepo);
-        this.clienteRepo = Objects.requireNonNull(clienteRepo);
-        this.servicioRepo = Objects.requireNonNull(servicioRepo);
-        this.parteRepo = Objects.requireNonNull(parteRepo);
+    public ServicioReserva(com.mycompany.proyectofinalpoo.repo.ReservaRepo reservaRepo,
+                           com.mycompany.proyectofinalpoo.repo.ServicioRepo servicioRepo,
+                           com.mycompany.proyectofinalpoo.repo.ParteRepo parteRepo,
+                           com.mycompany.proyectofinalpoo.repo.ClienteRepo clienteRepo,
+                           com.mycompany.proyectofinalpoo.repo.UsuarioRepo usuarioRepo,
+                           com.mycompany.proyectofinalpoo.repo.ConsumoParteRepo consumoRepo) {
+        this.reservaRepo = reservaRepo;
+        this.servicioRepo = servicioRepo;
+        this.parteRepo = parteRepo;
+        this.clienteRepo = clienteRepo;
+        this.usuarioRepo = usuarioRepo;
+        this.consumoRepo = consumoRepo;
     }
 
-    /** Crea una reserva validando existencia de cliente y servicio. */
     public Reserva createReserva(String clienteId, String servicioId, LocalDateTime fecha, String mecanico) {
         requireAdmin();
         if (clienteRepo.findById(clienteId).isEmpty()) throw new NotFoundException("Cliente no existe: " + clienteId);
         if (servicioRepo.findById(servicioId).isEmpty()) throw new NotFoundException("Servicio no existe: " + servicioId);
         if (fecha == null) throw new ValidationException("fecha requerida");
-    Reserva reserva = new Reserva(null, clienteId, servicioId, fecha, ReservaEstado.PROGRAMADA, mecanico);
-    reservaRepo.save(reserva);
-    return reserva;
+        Reserva reserva = new Reserva(null, clienteId, servicioId, fecha, ReservaEstado.PROGRAMADA, mecanico);
+        reservaRepo.save(reserva);
+        return reserva;
     }
 
     public static class ActualizarReservaRequest {
@@ -74,7 +74,21 @@ public class ServicioReserva {
         public String getMecanico() { return mecanico; }
     }
 
-    /** Actualiza los datos básicos de una reserva existente. */
+    public String obtenerNombreCliente(String idCliente) {
+        return clienteRepo.findById(idCliente).map(c -> c.getNombre()).orElse("[" + idCliente + "]");
+    }
+
+    public String obtenerNombreServicio(String idServicio) {
+        return servicioRepo.findById(idServicio).map(s -> s.getNombre()).orElse("[" + idServicio + "]");
+    }
+    
+    public java.util.Map<String,Integer> obtenerPartesRequeridasPorReserva(String reservaId) {
+    com.mycompany.proyectofinalpoo.Reserva r = reservaRepo.findById(reservaId)
+        .orElseThrow(() -> new NotFoundException("reserva no encontrada"));
+    return obtenerPartesRequeridas(r.getServicioId());
+}
+
+
     public Reserva updateReserva(String reservaId, ActualizarReservaRequest cambios) {
         requireAdmin();
         if (reservaId == null || reservaId.trim().isEmpty()) throw new ValidationException("id de reserva requerido");
@@ -89,15 +103,13 @@ public class ServicioReserva {
 
         if (cambios.getClienteId() != null) {
             String nuevoCliente = normalizarId(cambios.getClienteId(), "cliente");
-            clienteRepo.findById(nuevoCliente)
-                    .orElseThrow(() -> new NotFoundException("Cliente no existe: " + nuevoCliente));
+            clienteRepo.findById(nuevoCliente).orElseThrow(() -> new NotFoundException("Cliente no existe: " + nuevoCliente));
             reserva.setClienteId(nuevoCliente);
         }
 
         if (cambios.getServicioId() != null) {
             String nuevoServicio = normalizarId(cambios.getServicioId(), "servicio");
-            servicioRepo.findById(nuevoServicio)
-                    .orElseThrow(() -> new NotFoundException("Servicio no existe: " + nuevoServicio));
+            servicioRepo.findById(nuevoServicio).orElseThrow(() -> new NotFoundException("Servicio no existe: " + nuevoServicio));
             reserva.setServicioId(nuevoServicio);
         }
 
@@ -120,10 +132,6 @@ public class ServicioReserva {
         reservaRepo.delete(id);
     }
 
-    /**
-     * Cambia el estado de la reserva. Si pasa a FINALIZADA o ENTREGADA por primera vez,
-     * deduce inventario basado en el servicio.
-     */
     public Reserva changeEstado(String reservaId, ReservaEstado nuevoEstado) {
         Usuario usuario = SecurityContext.requireUser();
         boolean esAdmin = ControlAcceso.tieneRol(usuario, RolUsuario.ADMIN);
@@ -144,14 +152,12 @@ public class ServicioReserva {
 
         ReservaEstado estadoAnterior = reserva.getEstado();
         reserva.setEstado(nuevoEstado);
-        // Bonus: deducir inventario cuando FINALIZADA o ENTREGADA
         boolean debeDeducir = (nuevoEstado == ReservaEstado.FINALIZADA || nuevoEstado == ReservaEstado.ENTREGADA)
-            && !(estadoAnterior == ReservaEstado.FINALIZADA || estadoAnterior == ReservaEstado.ENTREGADA);
+                && !(estadoAnterior == ReservaEstado.FINALIZADA || estadoAnterior == ReservaEstado.ENTREGADA);
         if (debeDeducir) {
             Servicio servicio = servicioRepo.findById(reserva.getServicioId()).orElseThrow(() -> new NotFoundException("Servicio no encontrado: " + reserva.getServicioId()));
             Map<String,Integer> req = servicio.getPartesRequeridas();
             if (!req.isEmpty()) {
-                // validar stock
                 Map<String, Parte> inventario = new HashMap<>();
                 for (Parte p : parteRepo.findAll()) inventario.put(p.getId(), p);
                 List<String> faltantes = new ArrayList<>();
@@ -161,10 +167,9 @@ public class ServicioReserva {
                     if (p == null || p.getCantidad() < need) faltantes.add(e.getKey() + "(req=" + need + ")");
                 }
                 if (!faltantes.isEmpty()) {
-                    reserva.setEstado(estadoAnterior); // revert
+                    reserva.setEstado(estadoAnterior);
                     throw new StockException("Stock insuficiente para: " + String.join(", ", faltantes));
                 }
-                // deducir
                 for (Map.Entry<String,Integer> e : req.entrySet()) {
                     Parte p = inventario.get(e.getKey());
                     p.reducirCantidad(e.getValue());
@@ -181,19 +186,15 @@ public class ServicioReserva {
         return reservaRepo.findByFecha(dia);
     }
 
-    /** Lista las reservas asignadas al usuario autenticado cuando es mecánico. */
     public List<Reserva> listarReservasAsignadasAlActual() {
         Usuario usuario = SecurityContext.requireUser();
         boolean esAdmin = ControlAcceso.tieneRol(usuario, RolUsuario.ADMIN);
         boolean esMecanico = ControlAcceso.tieneRol(usuario, RolUsuario.MECANICO);
         if (!esAdmin && !esMecanico) throw new AutorizacionException("rol no autorizado para consultar reservas asignadas");
-        if (esAdmin) {
-            return reservaRepo.findAll();
-        }
+        if (esAdmin) return reservaRepo.findAll();
         return reservaRepo.findByMecanico(usuario.getUsername());
     }
 
-    /** Permite a un administrador consultar reservas asignadas a un mecánico específico. */
     public List<Reserva> listarReservasPorMecanico(String mecanicoAsignado) {
         requireAdmin();
         return reservaRepo.findByMecanico(mecanicoAsignado);
@@ -258,6 +259,42 @@ public class ServicioReserva {
             else if (estado == ReservaEstado.ENTREGADA) entregadas++;
         }
         return new ResumenReservasGlobal(total, programadas, enProgreso, finalizadas, entregadas);
+    }
+
+    public void registrarConsumo(String reservaId, String parteId, int cantidad, java.time.LocalDateTime fechaHora) {
+        if (reservaId == null || reservaId.isEmpty()) throw new ValidationException("reserva requerida");
+        if (parteId == null || parteId.isEmpty()) throw new ValidationException("parte requerida");
+        if (cantidad <= 0) throw new ValidationException("cantidad inválida");
+        Reserva r = reservaRepo.findById(reservaId).orElseThrow(() -> new NotFoundException("reserva no encontrada"));
+        com.mycompany.proyectofinalpoo.ConsumoParte c = new com.mycompany.proyectofinalpoo.ConsumoParte();
+        c.setReservaId(reservaId);
+        c.setParteId(parteId);
+        c.setCantidad(cantidad);
+        c.setFechaHora(fechaHora == null ? java.time.LocalDateTime.now() : fechaHora);
+        consumoRepo.save(c);
+    }
+
+    public Reserva cerrarReservaConConsumos(String reservaId, java.util.List<com.mycompany.proyectofinalpoo.ConsumoParte> consumos, ReservaEstado nuevoEstado) {
+        if (reservaId == null || reservaId.isEmpty()) throw new ValidationException("reserva requerida");
+        Reserva r = reservaRepo.findById(reservaId).orElseThrow(() -> new NotFoundException("reserva no encontrada"));
+        if (!(r.getEstado() == ReservaEstado.PROGRAMADA || r.getEstado() == ReservaEstado.EN_PROGRESO)) {
+            throw new ValidationException("estado no permite cierre");
+        }
+        consumoRepo.deleteByReservaId(reservaId);
+        if (consumos != null && !consumos.isEmpty()) {
+            for (com.mycompany.proyectofinalpoo.ConsumoParte c : consumos) {
+                c.setReservaId(reservaId);
+                if (c.getFechaHora() == null) c.setFechaHora(java.time.LocalDateTime.now());
+            }
+            consumoRepo.saveAll(consumos);
+        }
+        r.setEstado(nuevoEstado == null ? ReservaEstado.FINALIZADA : nuevoEstado);
+        reservaRepo.update(r);
+        return r;
+    }
+
+    public java.util.Map<String,Integer> obtenerPartesRequeridas(String servicioId) {
+        return servicioRepo.findById(servicioId).map(s -> s.getPartesRequeridas()).orElse(java.util.Collections.emptyMap());
     }
 
     private Map<LocalDate, List<Reserva>> agruparPorFecha(List<Reserva> reservas) {

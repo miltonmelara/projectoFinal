@@ -40,7 +40,18 @@ public class MenuPrincipal extends JFrame {
         
         // Inicializar servicios
     servicioInventario = new ServicioInventario(parteRepo);
-    servicioReserva = new ServicioReserva(reservaRepo, clienteRepo, servicioRepo, parteRepo);
+    var consumoRepo = new com.mycompany.proyectofinalpoo.repo.file.ConsumoParteFileRepo(java.nio.file.Path.of("data"));
+    var usuarioRepo = new com.mycompany.proyectofinalpoo.repo.file.UsuarioFileRepo(java.nio.file.Path.of("data"));
+
+servicioReserva = new com.mycompany.proyectofinalpoo.repo.servicios.ServicioReserva(
+    reservaRepo,
+    servicioRepo,
+    parteRepo,
+    clienteRepo,
+    usuarioRepo,
+    consumoRepo
+);
+
     servicioCliente = new ServicioCliente(clienteRepo, reservaRepo, servicioRepo);
     }
     

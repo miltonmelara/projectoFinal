@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.mycompany.proyectofinalpoo.repo.file;
 
 import java.nio.file.Path;
@@ -17,10 +13,6 @@ import com.mycompany.proyectofinalpoo.ReservaEstado;
 import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
 import com.mycompany.proyectofinalpoo.util.CsvUtil;
 
-/**
- *
- * @author Bebe
- */
 public class ReservaFileRepo implements ReservaRepo {
     private static final char SEP = ';';
     private final Path csvFilePath;
@@ -31,53 +23,83 @@ public class ReservaFileRepo implements ReservaRepo {
         CsvUtil.ensureHeaders(csvFilePath, HEADERS, SEP);
     }
 
-    @Override public void save(Reserva r) {
-        if (r.getId() == null) r.setId(UUID.randomUUID().toString());
-    List<Reserva> reservas = findAll();
-    reservas.add(r);
-    writeAll(reservas);
-    }
-
-    @Override public Optional<Reserva> findById(String id) { return findAll().stream().filter(x -> Objects.equals(x.getId(), id)).findFirst(); }
-
-    @Override public List<Reserva> findAll() {
-    List<String[]> rows = CsvUtil.readAll(csvFilePath, SEP);
-    List<Reserva> reservas = new ArrayList<>();
-    for (String[] row : rows) {
-        if (row.length < 6) continue;
-        Reserva reserva = new Reserva(
-            CsvUtil.trimToNull(row[0]), row[1], row[2], CsvUtil.parseDateTime(row[3]), CsvUtil.parseEstado(row[4], ReservaEstado.PROGRAMADA), row[5]
-        );
-        reservas.add(reserva);
+    @Override 
+    public void save(Reserva r) {
+        // Genera ID secuencial si no existe
+        if (r.getId() == null) {
+            r.setId(String.format("R%06d", obtenerSiguienteId()));
         }
-    return reservas;
+
+        List<Reserva> reservas = findAll();
+        reservas.add(r);
+        writeAll(reservas);
     }
 
-    @Override public void update(Reserva r) {
-    List<Reserva> reservas = findAll();
-    for (int i = 0; i < reservas.size(); i++) if (Objects.equals(reservas.get(i).getId(), r.getId())) { reservas.set(i, r); break; }
-    writeAll(reservas);
+    @Override 
+    public Optional<Reserva> findById(String id) { 
+        return findAll().stream().filter(x -> Objects.equals(x.getId(), id)).findFirst(); 
     }
 
-    @Override public void delete(String id) {
-    List<Reserva> reservas = new ArrayList<>();
-    for (Reserva reserva : findAll()) if (!Objects.equals(reserva.getId(), id)) reservas.add(reserva);
-    writeAll(reservas);
+    @Override 
+    public List<Reserva> findAll() {
+        List<String[]> rows = CsvUtil.readAll(csvFilePath, SEP);
+        List<Reserva> reservas = new ArrayList<>();
+        for (String[] row : rows) {
+            if (row.length < 6) continue;
+            Reserva reserva = new Reserva(
+                CsvUtil.trimToNull(row[0]),
+                row[1],
+                row[2],
+                CsvUtil.parseDateTime(row[3]),
+                CsvUtil.parseEstado(row[4], ReservaEstado.PROGRAMADA),
+                row[5]
+            );
+            reservas.add(reserva);
+        }
+        return reservas;
     }
 
-    @Override public List<Reserva> findByClienteId(String clienteId) {
-    List<Reserva> reservas = new ArrayList<>();
-    for (Reserva reserva : findAll()) if (Objects.equals(reserva.getClienteId(), clienteId)) reservas.add(reserva);
-    return reservas;
+    @Override 
+    public void update(Reserva r) {
+        List<Reserva> reservas = findAll();
+        for (int i = 0; i < reservas.size(); i++) {
+            if (Objects.equals(reservas.get(i).getId(), r.getId())) { 
+                reservas.set(i, r); 
+                break; 
+            }
+        }
+        writeAll(reservas);
     }
 
-    @Override public List<Reserva> findByFecha(LocalDate day) {
-    List<Reserva> reservas = new ArrayList<>();
-    for (Reserva reserva : findAll()) if (reserva.getFecha().toLocalDate().isEqual(day)) reservas.add(reserva);
-    return reservas;
+    @Override 
+    public void delete(String id) {
+        List<Reserva> reservas = new ArrayList<>();
+        for (Reserva reserva : findAll()) {
+            if (!Objects.equals(reserva.getId(), id)) reservas.add(reserva);
+        }
+        writeAll(reservas);
     }
 
-    @Override public List<Reserva> findByMecanico(String mecanicoAsignado) {
+    @Override 
+    public List<Reserva> findByClienteId(String clienteId) {
+        List<Reserva> reservas = new ArrayList<>();
+        for (Reserva reserva : findAll()) {
+            if (Objects.equals(reserva.getClienteId(), clienteId)) reservas.add(reserva);
+        }
+        return reservas;
+    }
+
+    @Override 
+    public List<Reserva> findByFecha(LocalDate day) {
+        List<Reserva> reservas = new ArrayList<>();
+        for (Reserva reserva : findAll()) {
+            if (reserva.getFecha().toLocalDate().isEqual(day)) reservas.add(reserva);
+        }
+        return reservas;
+    }
+
+    @Override 
+    public List<Reserva> findByMecanico(String mecanicoAsignado) {
         List<Reserva> reservas = new ArrayList<>();
         if (mecanicoAsignado == null) return reservas;
         String buscado = mecanicoAsignado.trim();
@@ -89,7 +111,8 @@ public class ReservaFileRepo implements ReservaRepo {
         return reservas;
     }
 
-    @Override public List<Reserva> findEntreFechas(LocalDate inicio, LocalDate fin) {
+    @Override 
+    public List<Reserva> findEntreFechas(LocalDate inicio, LocalDate fin) {
         if (inicio == null || fin == null) return new ArrayList<>();
         LocalDate fechaInicio = inicio;
         LocalDate fechaFin = fin;
@@ -110,9 +133,29 @@ public class ReservaFileRepo implements ReservaRepo {
         rows.add(HEADERS);
         for (Reserva reserva : reservas) {
             rows.add(new String[]{
-                    reserva.getId(), reserva.getClienteId(), reserva.getServicioId(), CsvUtil.formatDateTime(reserva.getFecha()), reserva.getEstado().name(), reserva.getMecanicoAsignado()
+                reserva.getId(),
+                reserva.getClienteId(),
+                reserva.getServicioId(),
+                CsvUtil.formatDateTime(reserva.getFecha()),
+                reserva.getEstado().name(),
+                reserva.getMecanicoAsignado()
             });
         }
         CsvUtil.writeAll(csvFilePath, rows, SEP);
+    }
+
+    // ✅ NUEVO MÉTODO: genera ID consecutivo basado en el último de reservas.csv
+    private int obtenerSiguienteId() {
+        try {
+            java.util.List<String> lineas = java.nio.file.Files.readAllLines(csvFilePath);
+            if (lineas.size() <= 1) return 1; // solo encabezado o vacío
+            String ultima = lineas.get(lineas.size() - 1);
+            String[] campos = ultima.split(";");
+            String idTexto = campos[0].replaceAll("[^0-9]", "");
+            int ultimo = idTexto.isEmpty() ? 0 : Integer.parseInt(idTexto);
+            return ultimo + 1;
+        } catch (Exception e) {
+            return 1;
+        }
     }
 }

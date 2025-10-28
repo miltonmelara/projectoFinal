@@ -5,8 +5,10 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.List;
+import com.mycompany.proyectofinalpoo.Reserva;
 import com.mycompany.proyectofinalpoo.ReservaEstado;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioReserva;
 import com.mycompany.proyectofinalpoo.repo.servicios.dto.CalendarioReservas;
@@ -14,6 +16,9 @@ import com.mycompany.proyectofinalpoo.repo.servicios.dto.DiaCalendario;
 
 public class VistaCalendario extends JPanel {
     private final ServicioReserva servicioReserva;
+    private final com.mycompany.proyectofinalpoo.repo.ParteRepo parteRepo;
+    private final com.mycompany.proyectofinalpoo.repo.ServicioRepo servicioRepo;
+
     private final JSpinner fechaInicio = new JSpinner(new SpinnerDateModel());
     private final JSpinner fechaFin = new JSpinner(new SpinnerDateModel());
     private final JTextField mecanico = new JTextField();
@@ -21,45 +26,52 @@ public class VistaCalendario extends JPanel {
     private final JButton btnAplicar = new JButton("Aplicar");
     private final JButton btnHoy = new JButton("Hoy");
     private final JButton btnMes = new JButton("Mes actual");
+    private final JButton btnCerrar = new JButton("Cerrar reserva");
+
     private final DefaultTableModel modelDias = new DefaultTableModel(new Object[]{"Fecha","Total","Programadas","En Progreso","Finalizadas","Entregadas"},0){ public boolean isCellEditable(int r,int c){return false;} };
     private final JTable tablaDias = new JTable(modelDias);
-    private final DefaultTableModel modelDetalle = new DefaultTableModel(new Object[]{"Reserva"},0){ public boolean isCellEditable(int r,int c){return false;} };
+    private final DefaultTableModel modelDetalle = new DefaultTableModel(new Object[]{"Fecha","Cliente","Mecánico","Servicio","Estado","ID"},0){ public boolean isCellEditable(int r,int c){return false;} };
     private final JTable tablaDetalle = new JTable(modelDetalle);
 
-    public VistaCalendario(ServicioReserva servicioReserva) {
+    public VistaCalendario(ServicioReserva servicioReserva,
+                           com.mycompany.proyectofinalpoo.repo.ParteRepo parteRepo,
+                           com.mycompany.proyectofinalpoo.repo.ServicioRepo servicioRepo) {
         this.servicioReserva = servicioReserva;
+        this.parteRepo = parteRepo;
+        this.servicioRepo = servicioRepo;
+
         setLayout(new BorderLayout(10,10));
         setBorder(BorderFactory.createEmptyBorder(12,12,12,12));
 
         JPanel filtros = new JPanel(new GridBagLayout());
-filtros.setBorder(BorderFactory.createTitledBorder("Filtros"));
-GridBagConstraints gc = new GridBagConstraints();
-gc.insets = new Insets(6,6,6,6);
-gc.fill = GridBagConstraints.HORIZONTAL;
+        filtros.setBorder(BorderFactory.createTitledBorder("Filtros"));
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.insets = new Insets(6,6,6,6);
+        gc.fill = GridBagConstraints.HORIZONTAL;
 
-fechaInicio.setEditor(new JSpinner.DateEditor(fechaInicio,"yyyy-MM-dd"));
-fechaFin.setEditor(new JSpinner.DateEditor(fechaFin,"yyyy-MM-dd"));
-estado.addItem(null);
-for (ReservaEstado e : ReservaEstado.values()) estado.addItem(e);
+        fechaInicio.setEditor(new JSpinner.DateEditor(fechaInicio,"yyyy-MM-dd"));
+        fechaFin.setEditor(new JSpinner.DateEditor(fechaFin,"yyyy-MM-dd"));
+        estado.addItem(null);
+        for (ReservaEstado e : ReservaEstado.values()) estado.addItem(e);
 
-gc.gridx=0; gc.gridy=0; filtros.add(new JLabel("Inicio"), gc);
-gc.gridx=1; gc.gridy=0; filtros.add(fechaInicio, gc);
+        gc.gridx=0; gc.gridy=0; filtros.add(new JLabel("Inicio"), gc);
+        gc.gridx=1; gc.gridy=0; filtros.add(fechaInicio, gc);
 
-gc.gridx=2; gc.gridy=0; filtros.add(new JLabel("Fin"), gc);
-gc.gridx=3; gc.gridy=0; filtros.add(fechaFin, gc);
+        gc.gridx=2; gc.gridy=0; filtros.add(new JLabel("Fin"), gc);
+        gc.gridx=3; gc.gridy=0; filtros.add(fechaFin, gc);
 
-gc.gridx=0; gc.gridy=1; filtros.add(new JLabel("Mecánico"), gc);
-gc.gridx=1; gc.gridy=1; filtros.add(mecanico, gc);
+        gc.gridx=0; gc.gridy=1; filtros.add(new JLabel("Mecánico"), gc);
+        gc.gridx=1; gc.gridy=1; filtros.add(mecanico, gc);
 
-gc.gridx=2; gc.gridy=1; filtros.add(new JLabel("Estado"), gc);
-gc.gridx=3; gc.gridy=1; filtros.add(estado, gc);
+        gc.gridx=2; gc.gridy=1; filtros.add(new JLabel("Estado"), gc);
+        gc.gridx=3; gc.gridy=1; filtros.add(estado, gc);
 
-JPanel acciones = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-acciones.add(btnAplicar);
-acciones.add(btnHoy);
-acciones.add(btnMes);
-gc.gridx=0; gc.gridy=2; gc.gridwidth=4; filtros.add(acciones, gc);
-
+        JPanel acciones = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        acciones.add(btnAplicar);
+        acciones.add(btnHoy);
+        acciones.add(btnMes);
+        acciones.add(btnCerrar);
+        gc.gridx=0; gc.gridy=2; gc.gridwidth=4; filtros.add(acciones, gc);
 
         tablaDias.setRowHeight(22);
         tablaDias.setFillsViewportHeight(true);
@@ -74,9 +86,10 @@ gc.gridx=0; gc.gridy=2; gc.gridwidth=4; filtros.add(acciones, gc);
 
         btnAplicar.addActionListener(e -> refrescar());
         estado.addActionListener(e -> refrescar());
-mecanico.addActionListener(e -> refrescar());
+        mecanico.addActionListener(e -> refrescar());
         btnHoy.addActionListener(e -> rangoHoy());
         btnMes.addActionListener(e -> rangoMesActual());
+        btnCerrar.addActionListener(e -> cerrarSeleccionada());
         tablaDias.getSelectionModel().addListSelectionListener(e -> cargarDetalleSeleccion());
 
         LocalDate hoy = LocalDate.now();
@@ -86,49 +99,46 @@ mecanico.addActionListener(e -> refrescar());
     }
 
     public void refrescarDesdeExterno() {
-    SwingUtilities.invokeLater(this::refrescar);
-}
+        SwingUtilities.invokeLater(this::refrescar);
+    }
 
     private void refrescar() {
-    LocalDate ini = toLocal((Date) fechaInicio.getValue());
-    LocalDate fin = toLocal((Date) fechaFin.getValue());
-    if (ini.isAfter(fin)) {
-        LocalDate tmp = ini;
-        ini = fin;
-        fin = tmp;
-        fechaInicio.setValue(toDate(ini));
-        fechaFin.setValue(toDate(fin));
-    }
-    String mec = mecanico.getText().trim();
-    ReservaEstado est = (ReservaEstado) estado.getSelectedItem();
-    CalendarioReservas cal = servicioReserva.generarCalendario(
-            ini, fin, mec.isEmpty() ? null : mec, est
-    );
+        LocalDate ini = toLocal((Date) fechaInicio.getValue());
+        LocalDate fin = toLocal((Date) fechaFin.getValue());
+        if (ini.isAfter(fin)) {
+            LocalDate tmp = ini;
+            ini = fin;
+            fin = tmp;
+            fechaInicio.setValue(toDate(ini));
+            fechaFin.setValue(toDate(fin));
+        }
+        String mec = mecanico.getText().trim();
+        ReservaEstado est = (ReservaEstado) estado.getSelectedItem();
+        CalendarioReservas cal = servicioReserva.generarCalendario(ini, fin, mec.isEmpty() ? null : mec, est);
 
-    modelDias.setRowCount(0);
-    modelDetalle.setRowCount(0);
-    if (cal == null || cal.obtenerDias() == null) return;
+        modelDias.setRowCount(0);
+        modelDetalle.setRowCount(0);
+        if (cal == null || cal.obtenerDias() == null) return;
 
-    for (DiaCalendario d : cal.obtenerDias()) {
-        int n = d.obtenerReservas().size();
-        if (n > 0) {
-            modelDias.addRow(new Object[]{
-                d.obtenerFecha(),
-                n,
-                d.obtenerTotalProgramadas(),
-                d.obtenerTotalEnProgreso(),
-                d.obtenerTotalFinalizadas(),
-                d.obtenerTotalEntregadas()
-            });
+        for (DiaCalendario d : cal.obtenerDias()) {
+            int n = d.obtenerReservas().size();
+            if (n > 0) {
+                modelDias.addRow(new Object[]{
+                        d.obtenerFecha(),
+                        n,
+                        d.obtenerTotalProgramadas(),
+                        d.obtenerTotalEnProgreso(),
+                        d.obtenerTotalFinalizadas(),
+                        d.obtenerTotalEntregadas()
+                });
+            }
+        }
+
+        if (modelDias.getRowCount() > 0) {
+            tablaDias.getSelectionModel().setSelectionInterval(0, 0);
+            cargarDetalleSeleccion();
         }
     }
-
-    if (modelDias.getRowCount() > 0) {
-        tablaDias.getSelectionModel().setSelectionInterval(0, 0);
-        cargarDetalleSeleccion();
-    }
-}
-
 
     private void cargarDetalleSeleccion() {
         int i = tablaDias.getSelectedRow();
@@ -145,9 +155,36 @@ mecanico.addActionListener(e -> refrescar());
         if (cal == null || cal.obtenerDias() == null) return;
         List<DiaCalendario> dias = cal.obtenerDias();
         if (dias.isEmpty()) return;
-        for (Object r : dias.get(0).obtenerReservas()) {
-            modelDetalle.addRow(new Object[]{String.valueOf(r)});
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        for (Reserva r : dias.get(0).obtenerReservas()) {
+            String fechaTxt = r.getFecha().format(fmt);
+            String clienteTxt = servicioReserva.obtenerNombreCliente(r.getClienteId());
+            String mecanicoTxt = r.getMecanicoAsignado();
+            String servicioTxt = servicioReserva.obtenerNombreServicio(r.getServicioId());
+            String estadoTxt = r.getEstado().name();
+            String idTxt = r.getId();
+            modelDetalle.addRow(new Object[]{ fechaTxt, clienteTxt, mecanicoTxt, servicioTxt, estadoTxt, idTxt });
         }
+    }
+
+    private void cerrarSeleccionada() {
+        int row = tablaDetalle.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Selecciona una reserva en el detalle.", "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        String reservaId = String.valueOf(modelDetalle.getValueAt(row, 5));
+        java.util.Map<String,Integer> sugeridas;
+        try {
+            sugeridas = servicioReserva.obtenerPartesRequeridasPorReserva(reservaId);
+        } catch (Exception ex) {
+            sugeridas = java.util.Collections.emptyMap();
+        }
+        java.awt.Window win = SwingUtilities.getWindowAncestor(this);
+        CerrarReservaDialog dlg = new CerrarReservaDialog(win, servicioReserva, parteRepo, reservaId, sugeridas);
+        dlg.setVisible(true);
+        refrescar();
     }
 
     private void rangoHoy() {
