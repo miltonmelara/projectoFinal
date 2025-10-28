@@ -153,8 +153,18 @@ contenido.add(vistaClientes, "CLI");
         servicioCliente = new ServicioCliente(clienteRepo, reservaRepo, servicioRepo);
         servicioReserva = new ServicioReserva(reservaRepo, clienteRepo, servicioRepo, parteRepo);
     }
+    
+    
+
+
+
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new Dashboard().setVisible(true));
-    }
+    javax.swing.SwingUtilities.invokeLater(() -> {
+        java.nio.file.Path carpetaDatos = java.nio.file.Path.of("data");
+        new InicioSesion(carpetaDatos).setVisible(true);
+    });
+
+}
+
 }

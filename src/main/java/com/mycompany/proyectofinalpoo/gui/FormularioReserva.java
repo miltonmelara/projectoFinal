@@ -21,6 +21,12 @@ import com.mycompany.proyectofinalpoo.repo.ServicioRepo;
 import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioReserva;
 import javax.swing.table.TableRowSorter; 
+import com.mycompany.proyectofinalpoo.Usuario;
+import com.mycompany.proyectofinalpoo.RolUsuario;
+import com.mycompany.proyectofinalpoo.repo.UsuarioRepo;
+import com.mycompany.proyectofinalpoo.repo.file.UsuarioFileRepo;
+import java.nio.file.Path;
+
 
 public class FormularioReserva extends JFrame {
     private ServicioReserva servicioReserva;
@@ -32,7 +38,7 @@ public class FormularioReserva extends JFrame {
     
     private JComboBox<ClienteItem> cmbClientes;
     private JComboBox<ServicioItem> cmbServicios;
-    private JTextField txtMecanico;
+    private JComboBox<String> cmbMecanicos;
     private JSpinner spnFecha, spnHora, spnMinutos;
     private JTextArea txtResultado, txtVistaPrevia, txtPartesRequeridas, txtDetalleReserva;
     private JLabel lblCostoTotal, lblDuracionTotal, lblDisponibilidad;
@@ -154,22 +160,26 @@ panel.add(panelCliente, gbc);
         
         // Mecánico
         gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 1;
-        panel.add(new JLabel("Mecánico:"), gbc);
-        gbc.gridx = 1; gbc.gridwidth = 2;
-        txtMecanico = new JTextField(20);
-        txtMecanico.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyReleased(java.awt.event.KeyEvent e) {
-                actualizarVistaPrevia();
-            }
-        });
-        panel.add(txtMecanico, gbc);
+panel.add(new JLabel("Mecánico:"), gbc);
+gbc.gridx = 1; gbc.gridwidth = 2;
+cmbMecanicos = new JComboBox<>();
+cmbMecanicos.setPreferredSize(new Dimension(300, 25));
+cmbMecanicos.addActionListener(e -> actualizarVistaPrevia());
+panel.add(cmbMecanicos, gbc);
+
         
         // Fecha y hora
         gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 1;
         panel.add(new JLabel("Fecha:"), gbc);
         gbc.gridx = 1;
-        spnFecha = new JSpinner(new SpinnerDateModel());
+        java.time.LocalDate hoy = java.time.LocalDate.now();
+java.time.ZoneId z = java.time.ZoneId.systemDefault();
+java.util.Date min = java.util.Date.from(hoy.atStartOfDay(z).toInstant());
+java.util.Date val = min;
+spnFecha = new JSpinner(new javax.swing.SpinnerDateModel(val, min, null, java.util.Calendar.DAY_OF_MONTH));
+JSpinner.DateEditor editorFecha = new JSpinner.DateEditor(spnFecha, "dd/MM/yyyy");
+spnFecha.setEditor(editorFecha);
+
         JSpinner.DateEditor dateEditor = new JSpinner.DateEditor(spnFecha, "dd/MM/yyyy");
         spnFecha.setEditor(dateEditor);
         spnFecha.addChangeListener(e -> actualizarVistaPrevia());
@@ -180,7 +190,7 @@ panel.add(panelCliente, gbc);
         gbc.gridx = 1;
         
         JPanel panelHora = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        spnHora = new JSpinner(new SpinnerNumberModel(8, 6, 18, 1));
+        spnHora = new JSpinner(new SpinnerNumberModel(8, 0, 23, 1));
         spnMinutos = new JSpinner(new SpinnerNumberModel(0, 0, 59, 15));
         spnHora.addChangeListener(e -> actualizarVistaPrevia());
         spnMinutos.addChangeListener(e -> actualizarVistaPrevia());
@@ -316,10 +326,23 @@ panel.add(panelCliente, gbc);
         for (Servicio servicio : servicios) {
             cmbServicios.addItem(new ServicioItem(servicio));
         }
+        cargarMecanicos();
+
         
         // Configurar fecha inicial (mañana)
         spnFecha.setValue(java.sql.Date.valueOf(LocalDate.now().plusDays(1)));
     }
+    
+    private void cargarMecanicos() {
+    UsuarioRepo usuarioRepo = new UsuarioFileRepo(Path.of("data"));
+    cmbMecanicos.removeAllItems();
+    for (Usuario u : usuarioRepo.findAll()) {
+        if (u.getRol() == RolUsuario.MECANICO) {
+            cmbMecanicos.addItem(u.getUsername());
+        }
+    }
+}
+
     
     public void setAlGuardar(Runnable r) {
     this.alGuardar = r;
@@ -381,7 +404,8 @@ panel.add(panelCliente, gbc);
         
         preview.append(String.format("Fecha: %s\n", fecha.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))));
         preview.append(String.format("Hora: %02d:%02d\n", hora, minutos));
-        preview.append(String.format("Mecánico: %s\n", txtMecanico.getText().trim()));
+       preview.append(String.format("Mecánico: %s\n", (cmbMecanicos.getSelectedItem() == null ? "" : (String) cmbMecanicos.getSelectedItem())));
+
         
         LocalDateTime fechaHora = LocalDateTime.of(fecha, LocalTime.of(hora, minutos));
         LocalDateTime horaFin = fechaHora.plusMinutes(servicio.getDuracionMin());
@@ -443,38 +467,34 @@ panel.add(panelCliente, gbc);
     }
     
     private void validarHorarioYDisponibilidad() {
-        java.util.Date fechaDate = (java.util.Date) spnFecha.getValue();
-        LocalDate fecha = fechaDate.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
-        int hora = (Integer) spnHora.getValue();
-        int minutos = (Integer) spnMinutos.getValue();
-        
-        StringBuilder estado = new StringBuilder("Estado: ");
-        boolean valido = true;
-        
-        // Validar fin de semana
-        if (chkValidarFinSemana.isSelected()) {
-            if (fecha.getDayOfWeek() == java.time.DayOfWeek.SATURDAY || 
-                fecha.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
-                estado.append("❌ Fin de semana no permitido");
-                valido = false;
-            }
+    java.util.Date fechaDate = (java.util.Date) spnFecha.getValue();
+    java.time.LocalDate fecha = fechaDate.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+    int hora = (Integer) spnHora.getValue();
+    int minutos = (Integer) spnMinutos.getValue();
+
+    boolean ok = true;
+    String mensaje = "Estado: ✅ Disponible";
+
+    if (chkValidarHorario.isSelected()) {
+        boolean fueraHorario = hora < 6 || hora > 18 || (hora == 18 && minutos > 0);
+        if (fueraHorario) {
+            ok = false;
+            mensaje = "Estado: ⚠️ Fuera del horario laboral (6:00–18:00)";
         }
-        
-        // Validar horario laboral
-        if (chkValidarHorario.isSelected() && valido) {
-            if (hora < 6 || hora > 18) {
-                estado.append("❌ Fuera del horario laboral (6:00-18:00)");
-                valido = false;
-            }
-        }
-        
-        if (valido) {
-            estado.append("✅ Horario válido");
-        }
-        
-        lblDisponibilidad.setText(estado.toString());
-        lblDisponibilidad.setForeground(valido ? new Color(0, 120, 0) : Color.RED);
     }
+
+    if (ok && chkValidarFinSemana.isSelected()) {
+        java.time.DayOfWeek d = fecha.getDayOfWeek();
+        boolean finDeSemana = d == java.time.DayOfWeek.SATURDAY || d == java.time.DayOfWeek.SUNDAY;
+        if (finDeSemana) {
+            ok = false;
+            mensaje = "Estado: ⚠️ Fin de semana restringido";
+        }
+    }
+
+    lblDisponibilidad.setText(mensaje);
+}
+
     
     private void validarDisponibilidad() {
         if (reservaRepo == null) {
@@ -556,7 +576,7 @@ panel.add(panelCliente, gbc);
         }
         
         String mecanicoSeleccionado = (String) modeloMecanicos.getValueAt(filaSeleccionada, 0);
-        txtMecanico.setText(mecanicoSeleccionado);
+        cmbMecanicos.setSelectedItem(mecanicoSeleccionado);
         actualizarVistaPrevia();
         
         // Cambiar a la pestaña de crear reserva
@@ -708,91 +728,76 @@ panel.add(panelCliente, gbc);
 }
     
     private void crearReserva() {
-        try {
-            ClienteItem clienteItem = (ClienteItem) cmbClientes.getSelectedItem();
-            ServicioItem servicioItem = (ServicioItem) cmbServicios.getSelectedItem();
-            String mecanico = txtMecanico.getText().trim();
-            
-            if (clienteItem == null || servicioItem == null) {
-                JOptionPane.showMessageDialog(this, "Seleccione cliente y servicio", 
-                                            "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            
-            if (mecanico.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Ingrese el mecánico asignado", 
-                                            "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            // Validar que el mecánico existe en la lista autorizada
-String[] mecanicosAutorizados = {"Carlos Rodriguez", "Maria Gonzalez", "Luis Martinez", "Ana Perez"};
-boolean mecanicoValido = false;
-for (String mecanicoAutorizado : mecanicosAutorizados) {
-    if (mecanicoAutorizado.equalsIgnoreCase(mecanico)) {
-        mecanicoValido = true;
-        break;
+    try {
+        ClienteItem clienteItem = (ClienteItem) cmbClientes.getSelectedItem();
+        ServicioItem servicioItem = (ServicioItem) cmbServicios.getSelectedItem();
+        String mecanico = (String) cmbMecanicos.getSelectedItem();
+
+        if (clienteItem == null || servicioItem == null) {
+            JOptionPane.showMessageDialog(this, "Seleccione cliente y servicio", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (mecanico == null || mecanico.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Seleccione un mecánico", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        java.util.Date fechaDate = (java.util.Date) spnFecha.getValue();
+        java.time.LocalDate fecha = fechaDate.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+        int hora = (Integer) spnHora.getValue();
+        int minutos = (Integer) spnMinutos.getValue();
+        java.time.LocalDateTime ahora = java.time.LocalDateTime.now();
+        java.time.LocalDateTime fechaHora = java.time.LocalDateTime.of(fecha, java.time.LocalTime.of(hora, minutos));
+
+        if (fecha.isBefore(java.time.LocalDate.now())) {
+            JOptionPane.showMessageDialog(this, "Seleccione una fecha de hoy o futura", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (fecha.isEqual(java.time.LocalDate.now()) && fechaHora.isBefore(ahora)) {
+            JOptionPane.showMessageDialog(this, "Para hoy seleccione una hora futura", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (!lblDisponibilidad.getText().contains("✅")) {
+            int confirmacion = JOptionPane.showConfirmDialog(this,
+                "El horario seleccionado tiene restricciones.\n¿Desea continuar de todas formas?",
+                "Confirmar Reserva",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+            if (confirmacion != JOptionPane.YES_OPTION) return;
+        }
+
+        Reserva nuevaReserva = servicioReserva.createReserva(
+            clienteItem.cliente.getId(),
+            servicioItem.servicio.getId(),
+            fechaHora,
+            mecanico
+        );
+
+        txtResultado.setText("✅ Reserva creada exitosamente:\n" +
+                "ID: " + nuevaReserva.getId() + "\n" +
+                "Cliente: " + clienteItem.cliente.getNombre() + "\n" +
+                "Servicio: " + servicioItem.servicio.getNombre() + "\n" +
+                "Fecha: " + fechaHora.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) + "\n" +
+                "Mecánico: " + mecanico);
+
+        limpiarCampos();
+        if (alGuardar != null) alGuardar.run();
+
+    } catch (Exception ex) {
+        JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
     }
 }
 
-if (!mecanicoValido) {
-    JOptionPane.showMessageDialog(this, 
-        "El mecánico '" + mecanico + "' no está registrado en el sistema.\n" +
-        "Mecánicos disponibles:\n" +
-        "• Carlos Rodriguez\n" +
-        "• Maria Gonzalez\n" +
-        "• Luis Martinez\n" +
-        "• Ana Perez", 
-        "Mecánico No Válido", JOptionPane.ERROR_MESSAGE);
-    return;
-}
-            
-            // Validar horario si está habilitada la validación
-            if (!lblDisponibilidad.getText().contains("✅")) {
-                int confirmacion = JOptionPane.showConfirmDialog(this,
-                    "El horario seleccionado tiene restricciones.\n¿Desea continuar de todas formas?",
-                    "Confirmar Reserva",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.WARNING_MESSAGE);
-                
-                if (confirmacion != JOptionPane.YES_OPTION) {
-                    return;
-                }
-            }
-            
-            java.util.Date fechaDate = (java.util.Date) spnFecha.getValue();
-            LocalDate fecha = fechaDate.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
-            int hora = (Integer) spnHora.getValue();
-            int minutos = (Integer) spnMinutos.getValue();
-            
-            LocalDateTime fechaHora = LocalDateTime.of(fecha, LocalTime.of(hora, minutos));
-            
-            Reserva nuevaReserva = servicioReserva.createReserva(
-                clienteItem.cliente.getId(),
-                servicioItem.servicio.getId(),
-                fechaHora,
-                mecanico
-            );
-            
-            txtResultado.setText("✅ Reserva creada exitosamente:\n" + 
-                               "ID: " + nuevaReserva.getId() + "\n" +
-                               "Cliente: " + clienteItem.cliente.getNombre() + "\n" +
-                               "Servicio: " + servicioItem.servicio.getNombre() + "\n" +
-                               "Fecha: " + fechaHora.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) + "\n" +
-                               "Mecánico: " + mecanico);
-            
-            limpiarCampos();
-            if (alGuardar != null) alGuardar.run();
-            
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), 
-                                        "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
+
     
     private void limpiarCampos() {
         if (cmbClientes.getItemCount() > 0) cmbClientes.setSelectedIndex(0);
         if (cmbServicios.getItemCount() > 0) cmbServicios.setSelectedIndex(0);
-        txtMecanico.setText("");
+        cmbMecanicos.setSelectedIndex(-1);
+
         spnFecha.setValue(java.sql.Date.valueOf(LocalDate.now().plusDays(1)));
         spnHora.setValue(8);
         spnMinutos.setValue(0);

@@ -194,8 +194,5 @@ public class MenuPrincipal extends JFrame {
     public ServicioReserva obtenerServicioReserva() {
         return servicioReserva;
     }
-    
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new MenuPrincipal().setVisible(true));
-    }
+        
 }

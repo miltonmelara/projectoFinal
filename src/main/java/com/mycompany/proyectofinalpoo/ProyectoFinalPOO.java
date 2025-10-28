@@ -75,8 +75,14 @@ public class ProyectoFinalPOO {
     }
 
     private static void seedUsuarios(UsuarioRepo usuarioRepo) {
-        ServicioUsuarios servicioUsuarios = new ServicioUsuarios(usuarioRepo);
-        servicioUsuarios.seedAdminDefault("admin", "admin123");
-        servicioUsuarios.seedUsuario("mecanico1", "mec123", RolUsuario.MECANICO);
-    }
+    com.mycompany.proyectofinalpoo.repo.servicios.ServicioUsuarios servicioUsuarios =
+        new com.mycompany.proyectofinalpoo.repo.servicios.ServicioUsuarios(usuarioRepo);
+
+    servicioUsuarios.seedAdminDefault("admin", "admin123");
+    servicioUsuarios.seedUsuario("Carlos Rodriguez", "1234", com.mycompany.proyectofinalpoo.RolUsuario.MECANICO);
+    servicioUsuarios.seedUsuario("Maria Gonzales", "1234", com.mycompany.proyectofinalpoo.RolUsuario.MECANICO);
+    servicioUsuarios.seedUsuario("Luis Martinez", "1234", com.mycompany.proyectofinalpoo.RolUsuario.MECANICO);
+    servicioUsuarios.seedUsuario("Ana Perez", "1234", com.mycompany.proyectofinalpoo.RolUsuario.MECANICO);
+}
+
 }
