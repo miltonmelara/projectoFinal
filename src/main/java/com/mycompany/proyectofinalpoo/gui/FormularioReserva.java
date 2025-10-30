@@ -26,6 +26,10 @@ import com.mycompany.proyectofinalpoo.RolUsuario;
 import com.mycompany.proyectofinalpoo.repo.UsuarioRepo;
 import com.mycompany.proyectofinalpoo.repo.file.UsuarioFileRepo;
 import java.nio.file.Path;
+import java.awt.Dimension;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+
 
 
 public class FormularioReserva extends JFrame {
@@ -89,6 +93,16 @@ public class FormularioReserva extends JFrame {
         // Pestaña 2: Vista Previa y Validaciones
         JPanel panelPrevia = crearPanelVistaPrevia();
         tabbedPane.addTab("Vista Previa", panelPrevia);
+        // Fuente y colores seguros para Unicode
+txtVistaPrevia.setFont(new java.awt.Font("Dialog", java.awt.Font.PLAIN, 14));
+// Alternativas válidas en Windows: "Segoe UI", "Consolas" (si es monoespaciada)
+txtVistaPrevia.setForeground(new java.awt.Color(230,236,245)); // texto claro
+txtVistaPrevia.setBackground(new java.awt.Color(24,28,34));    // azul oscuro
+
+// Opcional: que se vea mejor el texto
+txtVistaPrevia.setLineWrap(true);
+txtVistaPrevia.setWrapStyleWord(true);
+
         
         // Pestaña 3: Disponibilidad de Mecánicos
         // Pestaña 3: Ver Reservas Existentes  
@@ -136,8 +150,12 @@ gbc.gridx = 1; gbc.gridwidth = 2;
 // Panel para ComboBox + botón
 JPanel panelCliente = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
 cmbClientes = new JComboBox<>();
-cmbClientes.setPreferredSize(new Dimension(270, 25));
+cmbClientes.setPreferredSize(new Dimension(420, 34));
+EstiloCombos.aplicarDarkAzul(cmbClientes);
 cmbClientes.addActionListener(e -> actualizarVistaPrevia());
+
+
+
 
 JButton btnAgregarCliente = new JButton("+");
 btnAgregarCliente.setPreferredSize(new Dimension(30, 25));
@@ -148,13 +166,15 @@ btnAgregarCliente.addActionListener(e -> agregarClienteRapido());
 panelCliente.add(cmbClientes);
 panelCliente.add(btnAgregarCliente);
 panel.add(panelCliente, gbc);
-        
+
+    
         // Servicio
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 1;
         panel.add(new JLabel("Servicio:"), gbc);
         gbc.gridx = 1; gbc.gridwidth = 2;
         cmbServicios = new JComboBox<>();
-        cmbServicios.setPreferredSize(new Dimension(300, 25));
+        cmbServicios.setPreferredSize(new Dimension(420, 34));
+        EstiloCombos.aplicarDarkAzul(cmbServicios);
         cmbServicios.addActionListener(e -> actualizarVistaPrevia());
         panel.add(cmbServicios, gbc);
         
@@ -163,7 +183,8 @@ panel.add(panelCliente, gbc);
 panel.add(new JLabel("Mecánico:"), gbc);
 gbc.gridx = 1; gbc.gridwidth = 2;
 cmbMecanicos = new JComboBox<>();
-cmbMecanicos.setPreferredSize(new Dimension(300, 25));
+cmbMecanicos.setPreferredSize(new Dimension(380, 34));
+EstiloCombos.aplicarDarkAzul(cmbMecanicos);
 cmbMecanicos.addActionListener(e -> actualizarVistaPrevia());
 panel.add(cmbMecanicos, gbc);
 
@@ -253,27 +274,51 @@ spnFecha.setEditor(editorFecha);
     }
     
     private JPanel crearPanelVistaPrevia() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
-        // Vista previa del servicio
-        txtVistaPrevia = new JTextArea(15, 40);
-        txtVistaPrevia.setEditable(false);
-        txtVistaPrevia.setFont(new Font("Courier New", Font.PLAIN, 12));
-        JScrollPane scrollPrevia = new JScrollPane(txtVistaPrevia);
-        scrollPrevia.setBorder(BorderFactory.createTitledBorder("Vista Previa del Servicio"));
-        panel.add(scrollPrevia, BorderLayout.CENTER);
-        
-        // Partes requeridas
-        txtPartesRequeridas = new JTextArea(8, 40);
-        txtPartesRequeridas.setEditable(false);
-        txtPartesRequeridas.setFont(new Font("Courier New", Font.PLAIN, 11));
-        JScrollPane scrollPartes = new JScrollPane(txtPartesRequeridas);
-        scrollPartes.setBorder(BorderFactory.createTitledBorder("Partes Requeridas y Disponibilidad"));
-        panel.add(scrollPartes, BorderLayout.SOUTH);
-        
-        return panel;
-    }
+    // Panel principal con scroll único
+    JPanel panel = new JPanel(new BorderLayout());
+    panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+    // Panel interior donde estarán ambas secciones
+    JPanel contenido = new JPanel();
+    contenido.setLayout(new BoxLayout(contenido, BoxLayout.Y_AXIS));
+
+    // ----- Vista previa del servicio -----
+    txtVistaPrevia = new JTextArea(15, 40);
+    txtVistaPrevia.setEditable(false);
+    txtVistaPrevia.setFont(new Font("Courier New", Font.PLAIN, 12));
+    txtVistaPrevia.setLineWrap(true);
+    txtVistaPrevia.setWrapStyleWord(true);
+
+    JPanel panelPrevia = new JPanel(new BorderLayout());
+    panelPrevia.setBorder(BorderFactory.createTitledBorder("Vista Previa del Servicio"));
+    panelPrevia.add(txtVistaPrevia, BorderLayout.CENTER);
+
+    // ----- Partes requeridas -----
+    txtPartesRequeridas = new JTextArea(8, 40);
+    txtPartesRequeridas.setEditable(false);
+    txtPartesRequeridas.setFont(new Font("Courier New", Font.PLAIN, 11));
+    txtPartesRequeridas.setLineWrap(true);
+    txtPartesRequeridas.setWrapStyleWord(true);
+
+    JPanel panelPartes = new JPanel(new BorderLayout());
+    panelPartes.setBorder(BorderFactory.createTitledBorder("Partes Requeridas y Disponibilidad"));
+    panelPartes.add(txtPartesRequeridas, BorderLayout.CENTER);
+
+    // Agregar ambos paneles al contenedor interno
+    contenido.add(panelPrevia);
+    contenido.add(Box.createVerticalStrut(10)); // separación visual
+    contenido.add(panelPartes);
+
+    // Scroll general que envuelve todo el contenido
+    JScrollPane scrollGeneral = new JScrollPane(contenido);
+    scrollGeneral.setBorder(null);
+    scrollGeneral.getVerticalScrollBar().setUnitIncrement(15);
+
+
+    panel.add(scrollGeneral, BorderLayout.CENTER);
+    return panel;
+}
+
     
     private JPanel crearPanelMecanicos() {
         JPanel panel = new JPanel(new BorderLayout());
@@ -353,118 +398,150 @@ spnFecha.setEditor(editorFecha);
     }
     
     private void actualizarVistaPrevia() {
-        ServicioItem servicioItem = (ServicioItem) cmbServicios.getSelectedItem();
-        ClienteItem clienteItem = (ClienteItem) cmbClientes.getSelectedItem();
-        
-        if (servicioItem == null || clienteItem == null) {
-            lblCostoTotal.setText("Costo Total: Q0.00");
-            lblDuracionTotal.setText("Duración: 0 minutos");
-            lblDisponibilidad.setText("Estado: Seleccione cliente y servicio");
-            txtVistaPrevia.setText("Seleccione cliente y servicio para ver la vista previa");
-            txtPartesRequeridas.setText("");
-            return;
-        }
-        
-        Servicio servicio = servicioItem.servicio;
-        Cliente cliente = clienteItem.cliente;
-        
-        // Actualizar información básica
-        lblCostoTotal.setText(String.format("Costo Total: Q%.2f", servicio.getPrecio()));
-        lblDuracionTotal.setText(String.format("Duración: %d minutos", servicio.getDuracionMin()));
-        
-        // Validar horario y disponibilidad
-        validarHorarioYDisponibilidad();
-        
-        // Generar vista previa
-        StringBuilder preview = new StringBuilder();
-        preview.append("═══════════════════════════════════════════════════════════\n");
-        preview.append("                    VISTA PREVIA DE RESERVA\n");
-        preview.append("═══════════════════════════════════════════════════════════\n\n");
-        
-        preview.append("CLIENTE:\n");
-        preview.append("─────────────────────────────────────────────────────────\n");
-        preview.append(String.format("Nombre: %s\n", cliente.getNombre()));
-        preview.append(String.format("Contacto: %s\n", cliente.getContacto()));
-        preview.append(String.format("Vehículo: %s %s (%d)\n\n", 
-                                    cliente.getMarcaAuto(), cliente.getModeloAuto(), cliente.getAnioAuto()));
-        
-        preview.append("SERVICIO:\n");
-        preview.append("─────────────────────────────────────────────────────────\n");
-        preview.append(String.format("Servicio: %s\n", servicio.getNombre()));
-        preview.append(String.format("Duración: %d minutos\n", servicio.getDuracionMin()));
-        preview.append(String.format("Precio: Q%.2f\n\n", servicio.getPrecio()));
-        
-        preview.append("PROGRAMACIÓN:\n");
-        preview.append("─────────────────────────────────────────────────────────\n");
-        
-        java.util.Date fechaDate = (java.util.Date) spnFecha.getValue();
-        LocalDate fecha = fechaDate.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
-        int hora = (Integer) spnHora.getValue();
-        int minutos = (Integer) spnMinutos.getValue();
-        
-        preview.append(String.format("Fecha: %s\n", fecha.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))));
-        preview.append(String.format("Hora: %02d:%02d\n", hora, minutos));
-       preview.append(String.format("Mecánico: %s\n", (cmbMecanicos.getSelectedItem() == null ? "" : (String) cmbMecanicos.getSelectedItem())));
+    ServicioItem servicioItem = (ServicioItem) cmbServicios.getSelectedItem();
+    ClienteItem clienteItem = (ClienteItem) cmbClientes.getSelectedItem();
 
-        
-        LocalDateTime fechaHora = LocalDateTime.of(fecha, LocalTime.of(hora, minutos));
-        LocalDateTime horaFin = fechaHora.plusMinutes(servicio.getDuracionMin());
-        preview.append(String.format("Hora estimada de finalización: %s\n", 
-                                    horaFin.format(DateTimeFormatter.ofPattern("HH:mm"))));
-        
-        txtVistaPrevia.setText(preview.toString());
-        
-        // Actualizar partes requeridas
-        actualizarPartesRequeridas(servicio);
+    if (servicioItem == null || clienteItem == null) {
+        lblCostoTotal.setText("Costo Total: Q0.00");
+        lblDuracionTotal.setText("Duración: 0 minutos");
+        lblDisponibilidad.setText("Estado: Seleccione cliente y servicio");
+        txtVistaPrevia.setText("Seleccione cliente y servicio para ver la vista previa");
+        txtPartesRequeridas.setText("");
+        return;
     }
+
+    Servicio servicio = servicioItem.servicio;
+    Cliente cliente = clienteItem.cliente;
+
+    // Actualizar información básica
+    lblCostoTotal.setText(String.format("Costo Total: Q%.2f", servicio.getPrecio()));
+    lblDuracionTotal.setText(String.format("Duración: %d minutos", servicio.getDuracionMin()));
+
+    // Validar horario y disponibilidad
+    validarHorarioYDisponibilidad();
+
+    // Generar vista previa (ahora sin caracteres especiales)
+    StringBuilder sb = new StringBuilder();
+    sb.append("-------------------------------------------------------------\n");
+    sb.append("                   VISTA PREVIA DE RESERVA\n");
+    sb.append("-------------------------------------------------------------\n\n");
+
+    sb.append("CLIENTE:\n");
+    sb.append("-------------------------------------------------------------\n");
+    sb.append(String.format("Nombre: %s\n", cliente.getNombre()));
+    sb.append(String.format("Contacto: %s\n", cliente.getContacto()));
+    sb.append(String.format("Vehículo: %s %s (%d)\n\n",
+            cliente.getMarcaAuto(), cliente.getModeloAuto(), cliente.getAnioAuto()));
+
+    sb.append("SERVICIO:\n");
+    sb.append("-------------------------------------------------------------\n");
+    sb.append(String.format("Servicio: %s\n", servicio.getNombre()));
+    sb.append(String.format("Duración: %d minutos\n", servicio.getDuracionMin()));
+    sb.append(String.format("Precio: Q%.2f\n\n", servicio.getPrecio()));
+
+    sb.append("PROGRAMACIÓN:\n");
+    sb.append("-------------------------------------------------------------\n");
+
+    java.util.Date fechaDate = (java.util.Date) spnFecha.getValue();
+    LocalDate fecha = fechaDate.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+    int hora = (Integer) spnHora.getValue();
+    int minutos = (Integer) spnMinutos.getValue();
+
+    sb.append(String.format("Fecha: %s\n", fecha.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))));
+    sb.append(String.format("Hora: %02d:%02d\n", hora, minutos));
+    sb.append(String.format("Mecánico: %s\n",
+            (cmbMecanicos.getSelectedItem() == null ? "" : (String) cmbMecanicos.getSelectedItem())));
+
+    LocalDateTime fechaHora = LocalDateTime.of(fecha, LocalTime.of(hora, minutos));
+    LocalDateTime horaFin = fechaHora.plusMinutes(servicio.getDuracionMin());
+    sb.append(String.format("Hora estimada de finalización: %s\n",
+            horaFin.format(DateTimeFormatter.ofPattern("HH:mm"))));
+
     
-    private void actualizarPartesRequeridas(Servicio servicio) {
-        if (parteRepo == null) {
-            txtPartesRequeridas.setText("Información de partes no disponible");
-            return;
-        }
-        
-        StringBuilder partes = new StringBuilder();
-        partes.append("PARTES REQUERIDAS PARA EL SERVICIO:\n");
-        partes.append("═══════════════════════════════════════════════════════════\n\n");
-        
-        Map<String, Integer> partesRequeridas = servicio.getPartesRequeridas();
-        
-        if (partesRequeridas.isEmpty()) {
-            partes.append("Este servicio no requiere partes específicas.\n");
-        } else {
-            boolean hayProblemas = false;
-            double costoTotalPartes = 0.0;
-            
-            for (Map.Entry<String, Integer> entry : partesRequeridas.entrySet()) {
-                String parteId = entry.getKey();
-                int cantidadRequerida = entry.getValue();
-                
-                parteRepo.findById(parteId).ifPresentOrElse(parte -> {
-                    String estado = parte.getCantidad() >= cantidadRequerida ? "✅ DISPONIBLE" : "❌ INSUFICIENTE";
-                    partes.append(String.format("• %s\n", parte.getNombre()));
-                    partes.append(String.format("  Requerida: %d | Disponible: %d | %s\n", 
-                                               cantidadRequerida, parte.getCantidad(), estado));
-                    partes.append(String.format("  Costo unitario: Q%.2f\n\n", parte.getCosto()));
-                }, () -> {
-                    partes.append(String.format("• ID: %s\n", parteId));
-                    partes.append("  ❌ PARTE NO ENCONTRADA\n\n");
-                });
-            }
-            
-            partes.append("─────────────────────────────────────────────────────────\n");
-            partes.append("RESUMEN:\n");
-            partes.append(String.format("Total de tipos de partes: %d\n", partesRequeridas.size()));
-            
-            if (hayProblemas) {
-                partes.append("⚠️  ATENCIÓN: Hay problemas con el inventario\n");
-            } else {
-                partes.append("✅ Todas las partes están disponibles\n");
-            }
-        }
-        
-        txtPartesRequeridas.setText(partes.toString());
+    String preview = sb.toString()
+            .replace('\u2500', '-')   
+            .replace('\u2501', '-') 
+            .replace('\u2502', '|')   
+            .replace('\u2022', '*')  
+            .replace('\u2014', '-')  
+            .replace('\u2013', '-')
+            .replaceAll("[\\u2500-\\u257F\\u25A0-\\u25FF]", "-");
+
+    txtVistaPrevia.setFont(new java.awt.Font("Dialog", java.awt.Font.PLAIN, 14));
+    txtVistaPrevia.setForeground(new java.awt.Color(230, 236, 245));
+    txtVistaPrevia.setBackground(new java.awt.Color(24, 28, 34)); 
+
+    txtVistaPrevia.setText(preview);
+
+    
+    actualizarPartesRequeridas(servicio);
+}
+
+    
+    // agrega este import si no lo tienes arriba:
+// import java.util.concurrent.atomic.AtomicBoolean;
+
+private void actualizarPartesRequeridas(Servicio servicio) {
+    if (parteRepo == null) {
+        txtPartesRequeridas.setText("Información de partes no disponible");
+        return;
     }
+
+    StringBuilder sb = new StringBuilder();
+    sb.append("PARTES REQUERIDAS PARA EL SERVICIO:\n");
+    sb.append("-------------------------------------------------------------\n\n");
+
+    Map<String, Integer> partesRequeridas = servicio.getPartesRequeridas();
+
+    if (partesRequeridas.isEmpty()) {
+        sb.append("Este servicio no requiere partes específicas.\n");
+    } else {
+        AtomicBoolean hayProblemas = new AtomicBoolean(false);
+
+        for (Map.Entry<String, Integer> entry : partesRequeridas.entrySet()) {
+            String parteId = entry.getKey();
+            int cantidadRequerida = entry.getValue();
+
+            parteRepo.findById(parteId).ifPresentOrElse(parte -> {
+                String estado = parte.getCantidad() >= cantidadRequerida ? "✅ DISPONIBLE" : "❌ INSUFICIENTE";
+                if (parte.getCantidad() < cantidadRequerida) hayProblemas.set(true);
+
+                sb.append(String.format("• %s\n", parte.getNombre()));
+                sb.append(String.format("  Requerida: %d | Disponible: %d | %s\n",
+                        cantidadRequerida, parte.getCantidad(), estado));
+                sb.append(String.format("  Costo unitario: Q%.2f\n\n", parte.getCosto()));
+            }, () -> {
+                sb.append(String.format("• ID: %s\n", parteId));
+                sb.append("  ❌ PARTE NO ENCONTRADA\n\n");
+                hayProblemas.set(true);
+            });
+        }
+
+        sb.append("-------------------------------------------------------------\n");
+        sb.append("RESUMEN:\n");
+        sb.append(String.format("Total de tipos de partes: %d\n", partesRequeridas.size()));
+        sb.append(hayProblemas.get()
+                ? "⚠️  ATENCIÓN: Hay problemas con el inventario\n"
+                : "✅ Todas las partes están disponibles\n");
+    }
+
+    String textoLimpio = sb.toString()
+            .replace('\u2500', '-')   // ─
+            .replace('\u2501', '-')   // ━
+            .replace('\u2502', '|')   // │
+            .replace('\u2022', '*')   // •
+            .replace('\u2014', '-')   // —
+            .replace('\u2013', '-')
+            .replaceAll("[\\u2500-\\u257F\\u25A0-\\u25FF]", "-");
+
+    txtPartesRequeridas.setFont(new java.awt.Font("Dialog", java.awt.Font.PLAIN, 14));
+    txtPartesRequeridas.setForeground(new java.awt.Color(230, 236, 245));
+    txtPartesRequeridas.setBackground(new java.awt.Color(24, 28, 34));
+
+    txtPartesRequeridas.setText(textoLimpio);
+}
+
+
     
     private void validarHorarioYDisponibilidad() {
     java.util.Date fechaDate = (java.util.Date) spnFecha.getValue();

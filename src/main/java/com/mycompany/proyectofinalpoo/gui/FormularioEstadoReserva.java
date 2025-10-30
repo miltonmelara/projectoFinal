@@ -15,6 +15,8 @@ import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
 import com.mycompany.proyectofinalpoo.repo.ServicioRepo;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioReserva;
 import java.time.format.DateTimeFormatter;
+import java.awt.Dimension;
+
 
 public class FormularioEstadoReserva extends JFrame {
     private ServicioReserva servicioReserva;
@@ -125,7 +127,8 @@ public class FormularioEstadoReserva extends JFrame {
         
         panelControl.add(new JLabel("Nuevo Estado:"));
         cmbEstados = new JComboBox<>(ReservaEstado.values());
-        cmbEstados.setPreferredSize(new Dimension(120, 25));
+        cmbEstados.setPreferredSize(new Dimension(300, 32));
+        EstiloCombos.aplicarDarkAzul(cmbEstados);
         panelControl.add(cmbEstados);
         
         // Botones mejorados

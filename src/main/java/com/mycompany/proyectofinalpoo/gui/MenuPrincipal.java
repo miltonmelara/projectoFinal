@@ -3,8 +3,8 @@ package com.mycompany.proyectofinalpoo.gui;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.nio.file.Path;
+
 import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
 import com.mycompany.proyectofinalpoo.repo.ParteRepo;
 import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
@@ -25,185 +25,151 @@ public class MenuPrincipal extends JFrame {
     private ServicioRepo servicioRepo;
     private ReservaRepo reservaRepo;
     private ParteRepo parteRepo;
-    
+
     public MenuPrincipal() {
+        TemaNeoBlue.aplicar();
         initRepositorios();
         initComponents();
+        TemaNeoBlue.estilizar(this.getContentPane());
     }
-    
+
+    // === Repositorios y servicios ===
     private void initRepositorios() {
-    Path dataDir = Path.of("data");
-    clienteRepo = new ClienteFileRepo(dataDir);
-    parteRepo = new ParteFileRepo(dataDir);         // ← SIN "ParteRepo" al inicio
-    servicioRepo = new ServicioFileRepo(dataDir);
-    reservaRepo = new ReservaFileRepo(dataDir);
-        
-        // Inicializar servicios
-    servicioInventario = new ServicioInventario(parteRepo);
-    var consumoRepo = new com.mycompany.proyectofinalpoo.repo.file.ConsumoParteFileRepo(java.nio.file.Path.of("data"));
-    var usuarioRepo = new com.mycompany.proyectofinalpoo.repo.file.UsuarioFileRepo(java.nio.file.Path.of("data"));
+        Path dataDir = Path.of("data");
+        clienteRepo = new ClienteFileRepo(dataDir);
+        parteRepo = new ParteFileRepo(dataDir);
+        servicioRepo = new ServicioFileRepo(dataDir);
+        reservaRepo = new ReservaFileRepo(dataDir);
 
-servicioReserva = new com.mycompany.proyectofinalpoo.repo.servicios.ServicioReserva(
-    reservaRepo,
-    servicioRepo,
-    parteRepo,
-    clienteRepo,
-    usuarioRepo,
-    consumoRepo
-);
+        servicioInventario = new ServicioInventario(parteRepo);
+        var consumoRepo = new com.mycompany.proyectofinalpoo.repo.file.ConsumoParteFileRepo(dataDir);
+        var usuarioRepo = new com.mycompany.proyectofinalpoo.repo.file.UsuarioFileRepo(dataDir);
 
-    servicioCliente = new ServicioCliente(clienteRepo, reservaRepo, servicioRepo);
+        servicioReserva = new ServicioReserva(reservaRepo, servicioRepo, parteRepo, clienteRepo, usuarioRepo, consumoRepo);
+        servicioCliente = new ServicioCliente(clienteRepo, reservaRepo, servicioRepo);
     }
-    
+
+    // === Interfaz principal ===
     private void initComponents() {
         setTitle("Sistema de Taller - Menú Principal");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
-        
-        // Panel superior con título
+
+        // Panel superior (título)
         JPanel panelTitulo = new JPanel();
-        panelTitulo.setBackground(new Color(51, 102, 153));
+        panelTitulo.setBackground(new Color(24, 28, 34));
         JLabel lblTitulo = new JLabel("SISTEMA DE MANEJO DE INVENTARIO Y CRM");
-        lblTitulo.setFont(new Font("Arial", Font.BOLD, 20));
-        lblTitulo.setForeground(Color.WHITE);
+        lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        lblTitulo.setForeground(new Color(230, 236, 245));
         panelTitulo.add(lblTitulo);
-        
+
         // Panel central con botones
         JPanel panelCentral = new JPanel(new GridBagLayout());
+        panelCentral.setBackground(TemaNeoBlue.SURFACE);
         panelCentral.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
+
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.insets = new Insets(12, 10, 12, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        
-        // Botones principales
-        JButton btnInventario = new JButton("1. Agregar Ítem al Inventario");
-        JButton btnReserva = new JButton("2. Crear Nueva Reserva");
-        JButton btnEstado = new JButton("3. Cambiar Estado de Reserva");
-        JButton btnHistorial = new JButton("4. Consultar Historial de Cliente");
-        JButton btnSalir = new JButton("Salir");
-        
-        // Estilo de botones
-        Dimension buttonSize = new Dimension(300, 40);
-        Font buttonFont = new Font("Arial", Font.PLAIN, 14);
-        
-        btnInventario.setPreferredSize(buttonSize);
-        btnInventario.setFont(buttonFont);
-        btnReserva.setPreferredSize(buttonSize);
-        btnReserva.setFont(buttonFont);
-        btnEstado.setPreferredSize(buttonSize);
-        btnEstado.setFont(buttonFont);
-        btnHistorial.setPreferredSize(buttonSize);
-        btnHistorial.setFont(buttonFont);
-        btnSalir.setPreferredSize(buttonSize);
-        btnSalir.setFont(buttonFont);
-        btnSalir.setBackground(new Color(220, 53, 69));
-        btnSalir.setForeground(Color.WHITE);
-        
-        // Eventos de botones
-        btnInventario.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                abrirFormularioInventario();
-            }
-        });
-        
-        btnReserva.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                abrirFormularioReserva();
-            }
-        });
-        
-        btnEstado.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                abrirFormularioEstado();
-            }
-        });
-        
-        btnHistorial.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                abrirFormularioHistorial();
-            }
-        });
-        
-        btnSalir.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                int resultado = JOptionPane.showConfirmDialog(
-                    MenuPrincipal.this,
-                    "¿Está seguro que desea salir?",
-                    "Confirmar Salida",
-                    JOptionPane.YES_NO_OPTION
-                );
-                if (resultado == JOptionPane.YES_OPTION) {
-                    System.exit(0);
-                }
-            }
-        });
-        
-        // Añadir botones al panel
+
+        // Crear botones
+        JButton btnInventario = crearBoton("📦  Inventario", new Color(70, 100, 160));
+        JButton btnReserva    = crearBoton("🛠️  Crear Reserva", new Color(70, 140, 180));
+        JButton btnEstado     = crearBoton("⚙️  Cambiar Estado", new Color(110, 130, 170));
+        JButton btnHistorial  = crearBoton("📜  Historial", new Color(90, 110, 160));
+        JButton btnSalir      = crearBoton("🚪  Salir", new Color(190, 70, 70));
+
+        // Eventos
+        btnInventario.addActionListener(e -> abrirFormularioInventario());
+        btnReserva.addActionListener(e -> abrirFormularioReserva());
+        btnEstado.addActionListener(e -> abrirFormularioEstado());
+        btnHistorial.addActionListener(e -> abrirFormularioHistorial());
+        btnSalir.addActionListener(e -> salirConfirmar());
+
+        // Añadir botones
         gbc.gridx = 0; gbc.gridy = 0;
         panelCentral.add(btnInventario, gbc);
-        gbc.gridy = 1;
+        gbc.gridy++;
         panelCentral.add(btnReserva, gbc);
-        gbc.gridy = 2;
+        gbc.gridy++;
         panelCentral.add(btnEstado, gbc);
-        gbc.gridy = 3;
+        gbc.gridy++;
         panelCentral.add(btnHistorial, gbc);
-        gbc.gridy = 4;
+        gbc.gridy++;
         gbc.insets = new Insets(20, 10, 10, 10);
         panelCentral.add(btnSalir, gbc);
-        
+
         // Panel inferior con información
         JPanel panelInfo = new JPanel();
-        panelInfo.setBackground(new Color(248, 249, 250));
-        JLabel lblInfo = new JLabel("Desarrollado por Milton Melara y Jose Daniel Cuá");
-        lblInfo.setFont(new Font("Arial", Font.ITALIC, 12));
-        lblInfo.setForeground(Color.GRAY);
+        panelInfo.setBackground(TemaNeoBlue.SIDEBAR);
+        JLabel lblInfo = new JLabel("Desarrollado por Milton Melara y José Daniel Cuá");
+        lblInfo.setFont(new Font("Segoe UI", Font.ITALIC, 12));
+        lblInfo.setForeground(new Color(230, 236, 245));
         panelInfo.add(lblInfo);
-        
+
         add(panelTitulo, BorderLayout.NORTH);
         add(panelCentral, BorderLayout.CENTER);
         add(panelInfo, BorderLayout.SOUTH);
-        
+
         pack();
         setLocationRelativeTo(null);
         setResizable(false);
     }
-    
+
+    // === Métodos de apertura de formularios ===
     private void abrirFormularioInventario() {
-    FormularioInventario form = new FormularioInventario(servicioInventario, parteRepo);
-    form.setVisible(true);
-}
-    
-    private void abrirFormularioReserva() {
-    FormularioReserva form = new FormularioReserva(servicioReserva, clienteRepo, servicioRepo, parteRepo, reservaRepo);
-    form.setVisible(true);
-}
-    
-    private void abrirFormularioEstado() {
-    FormularioEstadoReserva form = new FormularioEstadoReserva(
-        servicioReserva, 
-        reservaRepo,
-        clienteRepo,    
-        servicioRepo    
-    );
-    form.setVisible(true);
-}
-    
-    private void abrirFormularioHistorial() {
-        FormularioHistorial form = new FormularioHistorial(servicioCliente, clienteRepo);
+        FormularioInventario form = new FormularioInventario(servicioInventario, parteRepo);
         form.setVisible(true);
     }
 
-    public ServicioCliente obtenerServicioCliente() {
-        return servicioCliente;
+    private void abrirFormularioReserva() {
+        FormularioReserva form = new FormularioReserva(servicioReserva, clienteRepo, servicioRepo, parteRepo, reservaRepo);
+        form.setVisible(true);
     }
 
-    public ServicioReserva obtenerServicioReserva() {
-        return servicioReserva;
+    private void abrirFormularioEstado() {
+        FormularioEstadoReserva form = new FormularioEstadoReserva(servicioReserva, reservaRepo, clienteRepo, servicioRepo);
+        form.setVisible(true);
     }
-        
+
+    private void abrirFormularioHistorial() {
+        FormularioHistorial form = new FormularioHistorial(servicioCliente, clienteRepo, servicioReserva, reservaRepo);
+        form.setVisible(true);
+    }
+
+    private void salirConfirmar() {
+        UIManager.put("OptionPane.yesButtonText", "Sí");
+        UIManager.put("OptionPane.noButtonText", "No");
+
+        int r = JOptionPane.showConfirmDialog(
+                this,
+                "¿Está seguro que desea salir del sistema?",
+                "Confirmar salida",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE
+        );
+        if (r == JOptionPane.YES_OPTION) System.exit(0);
+    }
+
+    // === Estilo de botones ===
+    private JButton crearBoton(String texto, Color colorFondo) {
+        JButton boton = new JButton(texto);
+        boton.setPreferredSize(new Dimension(300, 45));
+        boton.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        boton.setForeground(Color.WHITE);
+        boton.setBackground(colorFondo);
+        boton.setFocusPainted(false);
+        boton.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        boton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return boton;
+    }
+
+    // === Getters opcionales ===
+    public ServicioCliente obtenerServicioCliente() { return servicioCliente; }
+    public ServicioReserva obtenerServicioReserva() { return servicioReserva; }
+
+    // === Main ===
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new MenuPrincipal().setVisible(true));
+    }
 }

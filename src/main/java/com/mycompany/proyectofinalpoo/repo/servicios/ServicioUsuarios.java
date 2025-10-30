@@ -1,105 +1,95 @@
 package com.mycompany.proyectofinalpoo.repo.servicios;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-
-import com.mycompany.proyectofinalpoo.RolUsuario;
 import com.mycompany.proyectofinalpoo.Usuario;
+import com.mycompany.proyectofinalpoo.RolUsuario;
 import com.mycompany.proyectofinalpoo.repo.UsuarioRepo;
 
+import java.util.List;
+import java.util.Optional;
+
 public class ServicioUsuarios {
-    private final UsuarioRepo usuarioRepo;
+    private final UsuarioRepo repo;
 
-    public ServicioUsuarios(UsuarioRepo usuarioRepo) {
-        this.usuarioRepo = Objects.requireNonNull(usuarioRepo);
+    public ServicioUsuarios(UsuarioRepo repo) {
+        this.repo = repo;
     }
 
-    public Usuario iniciarSesion(String username, String password) {
-        Usuario usuario = autenticar(username, password);
-        SecurityContext.setCurrentUser(usuario);
-        return usuario;
-    }
-
-    public void cerrarSesion() {
-        SecurityContext.clear();
-    }
-
-    public Usuario crearUsuario(String username, String password, RolUsuario rol) {
-        ControlAcceso.requireRol(SecurityContext.requireUser(), RolUsuario.ADMIN);
-        Usuario usuario = construirUsuario(username, password, rol);
-        usuarioRepo.save(usuario);
-        return usuario;
-    }
-
-    public List<Usuario> listarUsuarios() {
-        ControlAcceso.requireRol(SecurityContext.requireUser(), RolUsuario.ADMIN);
-        return usuarioRepo.findAll();
-    }
-
-    public void cambiarPassword(String username, String passwordActual, String nuevoPassword) {
-        Usuario usuarioActual = autenticar(username, passwordActual);
-        Usuario solicitante = SecurityContext.requireUser();
-        if (!solicitante.getUsername().equals(usuarioActual.getUsername()) &&
-                !ControlAcceso.tieneRol(solicitante, RolUsuario.ADMIN)) {
-            throw new AutorizacionException("no tiene permisos para cambiar la contraseña de otro usuario");
-        }
-        usuarioActual.setPassword(validarPassword(nuevoPassword));
-        usuarioRepo.update(usuarioActual);
-    }
-
+    // Semillas de conveniencia (las usas en InicioSesion)
     public void seedAdminDefault(String username, String password) {
-        Optional<Usuario> existente = usuarioRepo.findByUsername(username);
-        if (existente.isEmpty()) {
-            Usuario admin = construirUsuario(username, password, RolUsuario.ADMIN);
-            usuarioRepo.save(admin);
+        if (!repo.existsByUsername(username)) {
+            Usuario admin = new Usuario();
+            admin.setUsername(username);
+            admin.setPassword(password);
+            admin.setRol(RolUsuario.ADMIN);
+            repo.save(admin);
+        } else {
+            // Si existe pero no es ADMIN, lo forzamos a ADMIN (opcional)
+            repo.findByUsername(username).ifPresent(u -> {
+                if (u.getRol() != RolUsuario.ADMIN) {
+                    u.setRol(RolUsuario.ADMIN);
+                    repo.update(u);
+                }
+            });
         }
+        asegurarUnicoAdmin(); // opcional para garantizar que solo haya uno
     }
 
     public void seedUsuario(String username, String password, RolUsuario rol) {
-        Optional<Usuario> existente = usuarioRepo.findByUsername(username);
-        if (existente.isEmpty()) {
-            Usuario usuario = construirUsuario(username, password, rol);
-            usuarioRepo.save(usuario);
+        if (!repo.existsByUsername(username)) {
+            Usuario u = new Usuario();
+            u.setUsername(username);
+            u.setPassword(password);
+            u.setRol(rol);
+            repo.save(u);
         }
     }
 
-    public Usuario obtenerUsuarioActual() {
-        return SecurityContext.getCurrentUser();
+    // Gestión de mecánicos
+    public void crearMecanico(String username, String password) {
+        if (repo.existsByUsername(username)) {
+            throw new IllegalArgumentException("El usuario ya existe: " + username);
+        }
+        Usuario u = new Usuario();
+        u.setUsername(username);
+        u.setPassword(password);
+        u.setRol(RolUsuario.MECANICO);
+        repo.save(u);
     }
 
-    public boolean usuarioActualEsAdmin() {
-        return ControlAcceso.tieneRol(SecurityContext.getCurrentUser(), RolUsuario.ADMIN);
+    public boolean eliminarMecanico(String username) {
+        Optional<Usuario> u = repo.findByUsername(username);
+        if (u.isEmpty()) return false;
+        if (u.get().getRol() == RolUsuario.ADMIN) {
+            throw new IllegalStateException("No puedes eliminar al administrador.");
+        }
+        return repo.delete(username);
     }
 
-    private Usuario autenticar(String username, String password) {
-        String user = validarUsername(username);
-        String pass = validarPassword(password);
-        Usuario usuario = usuarioRepo.findByUsername(user)
-                .orElseThrow(() -> new AutorizacionException("credenciales inválidas"));
-        if (!usuario.getPassword().equals(pass)) throw new AutorizacionException("credenciales inválidas");
-        return usuario;
+    public List<Usuario> listarMecanicos() {
+        return repo.findByRole(RolUsuario.MECANICO);
     }
 
-    private Usuario construirUsuario(String username, String password, RolUsuario rol) {
-        String user = validarUsername(username);
-        String pass = validarPassword(password);
-        if (rol == null) throw new ValidationException("rol requerido");
-        return new Usuario(user, pass, rol);
+    public Optional<Usuario> getAdmin() {
+        return repo.findByRole(RolUsuario.ADMIN).stream().findFirst();
     }
 
-    private String validarUsername(String username) {
-        if (username == null) throw new ValidationException("username requerido");
-        String valor = username.trim();
-        if (valor.isEmpty()) throw new ValidationException("username requerido");
-        if (valor.length() < 3) throw new ValidationException("username muy corto");
-        return valor;
-    }
-
-    private String validarPassword(String password) {
-        if (password == null) throw new ValidationException("password requerido");
-        String valor = password.trim();
-        if (valor.length() < 4) throw new ValidationException("password debe tener al menos 4 caracteres");
-        return valor;
+    // Garantiza que haya exactamente un ADMIN (ajústalo a tu política)
+    private void asegurarUnicoAdmin() {
+        List<Usuario> admins = repo.findByRole(RolUsuario.ADMIN);
+        if (admins.isEmpty()) {
+            // Crea uno si no hay (no debería pasar si llamaste seedAdminDefault)
+            Usuario admin = new Usuario();
+            admin.setUsername("admin");
+            admin.setPassword("admin123");
+            admin.setRol(RolUsuario.ADMIN);
+            repo.save(admin);
+        } else if (admins.size() > 1) {
+            // Si hay más de uno, dejamos el primero y degradamos el resto a MECÁNICO
+            for (int i = 1; i < admins.size(); i++) {
+                Usuario extra = admins.get(i);
+                extra.setRol(RolUsuario.MECANICO);
+                repo.update(extra);
+            }
+        }
     }
 }

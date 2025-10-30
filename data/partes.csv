@@ -1,4 +1,4 @@
 id;nombre;categoria;cantidad;precioUnitario;costo
-0087b8e7-4add-49c9-a37f-cfc2e23923a3;PASTILLA-FRENO-DELANTERA;Frenos;15;45.5;28.0
-db1afd86-06bb-4e0a-a493-cb6a7ad17ec3;VALVULA BOSCH;Valvulas;1;25.0;10.0
-faaa1ce6-e171-4ca0-9d6a-7257acbfe22e;Pastilla de freno BMW;Pastilla de freno;1;100.0;50.0
+00001;PASTILLA-FRENO-DELANTERA;Frenos;15;45.5;28.0
+00002;VALVULA BOSCH;Valvulas;1;25.0;10.0
+00003;Pastilla de freno BMW;Pastilla de freno;1;100.0;50.0

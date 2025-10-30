@@ -12,5 +12,6 @@ public enum ReservaEstado {
     PROGRAMADA,
     EN_PROGRESO,
     FINALIZADA,
-    ENTREGADA
+    ENTREGADA,
+    CANCELADA
 }

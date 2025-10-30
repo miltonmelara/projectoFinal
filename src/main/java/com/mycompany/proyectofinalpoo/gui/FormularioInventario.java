@@ -13,6 +13,9 @@ import java.util.Optional;
 import com.mycompany.proyectofinalpoo.Parte;
 import com.mycompany.proyectofinalpoo.repo.ParteRepo;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioInventario;
+import javax.swing.table.JTableHeader;
+import javax.swing.table.DefaultTableCellRenderer;
+
 
 public class FormularioInventario extends JFrame {
     private ServicioInventario servicioInventario;
@@ -190,6 +193,7 @@ public class FormularioInventario extends JFrame {
         
         panelFiltros.add(new JLabel("Categoría:"));
         cmbFiltroCategoria = new JComboBox<>();
+        EstiloCombos.aplicarDarkAzul(cmbFiltroCategoria);
         cmbFiltroCategoria.addItem("Todas");
         cmbFiltroCategoria.addActionListener(e -> aplicarFiltros());
         panelFiltros.add(cmbFiltroCategoria);
@@ -228,15 +232,72 @@ public class FormularioInventario extends JFrame {
             }
         };
         
-        tablaPartes = new JTable(modeloTabla);
-        tablaPartes.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        tablaPartes.setAutoCreateRowSorter(true);
+        // Creación de la tabla
+tablaPartes = new JTable(modeloTabla);
+tablaPartes.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+tablaPartes.setAutoCreateRowSorter(true);
+
+// === Tema oscuro para la tabla ===
+tablaPartes.setFillsViewportHeight(true);
+tablaPartes.setRowHeight(26);
+tablaPartes.setShowHorizontalLines(true);
+tablaPartes.setShowVerticalLines(false);
+tablaPartes.setBackground(TemaNeoBlue.SURFACE);
+tablaPartes.setForeground(TemaNeoBlue.TXT);
+tablaPartes.setSelectionBackground(new Color(70,100,150));
+tablaPartes.setSelectionForeground(Color.WHITE);
+tablaPartes.setGridColor(new Color(80, 100, 140));
+
+// Encabezado
+JTableHeader header = tablaPartes.getTableHeader();
+header.setBackground(TemaNeoBlue.SIDEBAR);
+header.setForeground(TemaNeoBlue.TXT);
+header.setFont(header.getFont().deriveFont(Font.BOLD));
+header.setReorderingAllowed(false);
+
+// Renderer oscuro
+DefaultTableCellRenderer darkRenderer = new DefaultTableCellRenderer() {
+    @Override
+    public Component getTableCellRendererComponent(
+            JTable table, Object value, boolean isSelected,
+            boolean hasFocus, int row, int column) {
+
+        Component c = super.getTableCellRendererComponent(
+                table, value, isSelected, hasFocus, row, column);
+
+        if (isSelected) {
+            c.setBackground(table.getSelectionBackground());
+            c.setForeground(table.getSelectionForeground());
+        } else {
+            c.setBackground(TemaNeoBlue.SURFACE);
+            c.setForeground(TemaNeoBlue.TXT);
+        }
+        if (c instanceof JLabel lbl) {
+            lbl.setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
+        }
+        return c;
+    }
+};
+// Aplica a todas las columnas
+for (int i = 0; i < tablaPartes.getColumnModel().getColumnCount(); i++) {
+    tablaPartes.getColumnModel().getColumn(i).setCellRenderer(darkRenderer);
+}
+
+// === CREA EL SCROLL AQUÍ y ponle el fondo del viewport ===
+JScrollPane scroll = new JScrollPane(tablaPartes);
+scroll.getViewport().setBackground(TemaNeoBlue.BG_ALT);
+
+// (y luego agregas 'scroll' al panel donde corresponda)
+
+        
+        
         
         // Configurar renderizado de colores para stock bajo
         tablaPartes.setDefaultRenderer(Object.class, new StockCellRenderer());
         
         sorter = new TableRowSorter<>(modeloTabla);
         tablaPartes.setRowSorter(sorter);
+        
         
         JScrollPane scrollTabla = new JScrollPane(tablaPartes);
         scrollTabla.setPreferredSize(new Dimension(700, 300));

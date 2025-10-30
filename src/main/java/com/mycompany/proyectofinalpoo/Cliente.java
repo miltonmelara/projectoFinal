@@ -1,14 +1,7 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.mycompany.proyectofinalpoo;
+
 import java.util.Objects;
 
-/**
- *
- * @author Bebe
- */
 public class Cliente {
     private String id;
     private String nombre;
@@ -59,8 +52,17 @@ public class Cliente {
     }
 
     public int getAnioAuto() { return anioAuto; }
-    public void setAnioAuto(int anioAuto) {
-        this.anioAuto = anioAuto;
+    public void setAnioAuto(int anioAuto) { this.anioAuto = anioAuto; }
+
+    /**
+     * Helper opcional para mostrar el ID con 5 dígitos si ya es numérico.
+     * No modifica el estado del objeto.
+     */
+    public String id5() {
+        if (id != null && id.matches("\\d{1,5}")) {
+            return String.format("%05d", Integer.parseInt(id));
+        }
+        return id;
     }
 
     @Override public String toString() {

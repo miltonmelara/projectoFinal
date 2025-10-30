@@ -1,205 +1,223 @@
 package com.mycompany.proyectofinalpoo.gui;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
+
 import com.mycompany.proyectofinalpoo.Cliente;
 import com.mycompany.proyectofinalpoo.Reserva;
-import com.mycompany.proyectofinalpoo.Servicio;
+import com.mycompany.proyectofinalpoo.ReservaEstado;
 import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
+import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioCliente;
-import com.mycompany.proyectofinalpoo.repo.servicios.dto.HistorialCliente;
-import java.time.format.DateTimeFormatter;
+import com.mycompany.proyectofinalpoo.repo.servicios.ServicioReserva;
 
 public class FormularioHistorial extends JFrame {
-    private ServicioCliente servicioCliente;
-    private ClienteRepo clienteRepo;
-    private JComboBox<ClienteItem> cmbClientes;
-    private JTextArea txtHistorial;
-    
-    public FormularioHistorial(ServicioCliente servicioCliente, ClienteRepo clienteRepo) {
+    private final ServicioCliente servicioCliente;
+    private final ClienteRepo clienteRepo;
+    private final ServicioReserva servicioReserva;
+    private final ReservaRepo reservaRepo;
+
+    // Filtros
+    private final JComboBox<String> cbCliente = new JComboBox<>();
+    private final JComboBox<String> cbMecanico = new JComboBox<>();
+    private final JSpinner spInicio = new JSpinner(new SpinnerDateModel());
+    private final JSpinner spFin = new JSpinner(new SpinnerDateModel());
+    private final JButton btnAplicar = new JButton("Consultar");
+    private final JButton btnLimpiar = new JButton("Limpiar");
+    private final JButton btnCerrar = new JButton("Cerrar");
+
+    // Tabla
+    private final DefaultTableModel model = new DefaultTableModel(
+            new Object[]{"Fecha","Cliente","Mecánico","Servicio","Estado","ID"}, 0
+    ){ public boolean isCellEditable(int r,int c){ return false; } };
+    private final JTable tabla = new JTable(model);
+
+    // Datos base (FINALIZADA o CANCELADA)
+    private List<Reserva> base;
+
+    // ---- ctor ----
+    public FormularioHistorial(ServicioCliente servicioCliente,
+                               ClienteRepo clienteRepo,
+                               ServicioReserva servicioReserva,
+                               ReservaRepo reservaRepo) {
         this.servicioCliente = servicioCliente;
         this.clienteRepo = clienteRepo;
-        initComponents();
-        cargarClientes();
-    }
-    
-    private void initComponents() {
-        setTitle("Historial de Cliente");
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setLayout(new BorderLayout());
-        
-        // Panel superior
-        JPanel panelSuperior = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 10, 10, 10);
-        
-        // Título
-        JLabel lblTitulo = new JLabel("Consultar Historial de Cliente");
-        lblTitulo.setFont(new Font("Arial", Font.BOLD, 16));
-        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 3;
-        panelSuperior.add(lblTitulo, gbc);
-        
-        // Selector de cliente
-        gbc.gridwidth = 1;
-        gbc.gridx = 0; gbc.gridy = 1;
-        panelSuperior.add(new JLabel("Cliente:"), gbc);
-        
-        gbc.gridx = 1;
-        cmbClientes = new JComboBox<>();
-        cmbClientes.setPreferredSize(new Dimension(300, 25));
-        panelSuperior.add(cmbClientes, gbc);
-        
-        // Botones
-        JPanel panelBotones = new JPanel(new FlowLayout());
-        JButton btnConsultar = new JButton("Consultar Historial");
-        JButton btnLimpiar = new JButton("Limpiar");
-        JButton btnCerrar = new JButton("Cerrar");
-        
-        btnConsultar.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                consultarHistorial();
-            }
-        });
-        
-        btnLimpiar.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                txtHistorial.setText("");
-            }
-        });
-        
-        btnCerrar.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                dispose();
-            }
-        });
-        
-        panelBotones.add(btnConsultar);
-        panelBotones.add(btnLimpiar);
-        panelBotones.add(btnCerrar);
-        
-        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 3;
-        panelSuperior.add(panelBotones, gbc);
-        
-        // Área de historial
-        txtHistorial = new JTextArea(20, 50);
-        txtHistorial.setEditable(false);
-        txtHistorial.setFont(new Font("Courier New", Font.PLAIN, 12));
-        txtHistorial.setBackground(Color.WHITE);
-        JScrollPane scrollHistorial = new JScrollPane(txtHistorial);
-        scrollHistorial.setBorder(BorderFactory.createTitledBorder("Historial del Cliente"));
-        
-        add(panelSuperior, BorderLayout.NORTH);
-        add(scrollHistorial, BorderLayout.CENTER);
-        
-        pack();
+        this.servicioReserva = servicioReserva;
+        this.reservaRepo = reservaRepo;
+
+        setTitle("Historial");
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        setSize(980, 640);
         setLocationRelativeTo(null);
+
+        // Tema oscuro coherente
+        TemaNeoBlue.aplicar();
+        TemaNeoBlue.estilizar(getContentPane());
+        UIManager.put("TitledBorder.titleColor", new Color(230,236,245));
+
+        // ---------- UI ----------
+        JPanel root = new JPanel(new BorderLayout(12,12));
+        root.setBorder(BorderFactory.createEmptyBorder(12,12,12,12));
+        setContentPane(root);
+
+        // Edición de fechas
+        spInicio.setEditor(new JSpinner.DateEditor(spInicio, "yyyy-MM-dd"));
+        spFin.setEditor(new JSpinner.DateEditor(spFin, "yyyy-MM-dd"));
+
+        // Panel de filtros
+        TemaNeoBlue.CardPanel filtros = new TemaNeoBlue.CardPanel();
+        filtros.setLayout(new GridBagLayout());
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.insets = new Insets(6,6,6,6);
+        gc.fill = GridBagConstraints.HORIZONTAL;
+
+        EstiloCombos.aplicarDarkAzul(cbCliente);
+        EstiloCombos.aplicarDarkAzul(cbMecanico);
+
+        gc.gridx=0; gc.gridy=0; filtros.add(new JLabel("Cliente:"), gc);
+        gc.gridx=1; gc.gridy=0; filtros.add(cbCliente, gc);
+        gc.gridx=2; gc.gridy=0; filtros.add(new JLabel("Mecánico:"), gc);
+        gc.gridx=3; gc.gridy=0; filtros.add(cbMecanico, gc);
+
+        gc.gridx=0; gc.gridy=1; filtros.add(new JLabel("Inicio:"), gc);
+        gc.gridx=1; gc.gridy=1; filtros.add(spInicio, gc);
+        gc.gridx=2; gc.gridy=1; filtros.add(new JLabel("Fin:"), gc);
+        gc.gridx=3; gc.gridy=1; filtros.add(spFin, gc);
+
+        JPanel acciones = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        acciones.add(btnAplicar);
+        acciones.add(btnLimpiar);
+        acciones.add(btnCerrar);
+        gc.gridx=0; gc.gridy=2; gc.gridwidth=4; filtros.add(acciones, gc);
+
+        // Tabla en CardPanel para evitar fondo blanco
+        tabla.setRowHeight(24);
+        tabla.setFillsViewportHeight(true);
+        tabla.getTableHeader().setReorderingAllowed(false);
+        TemaNeoBlue.CardPanel tablaCard = new TemaNeoBlue.CardPanel();
+        tablaCard.setLayout(new BorderLayout());
+        tablaCard.add(new JScrollPane(tabla), BorderLayout.CENTER);
+
+        root.add(filtros, BorderLayout.NORTH);
+        root.add(tablaCard, BorderLayout.CENTER);
+
+        // ---------- Eventos ----------
+        btnAplicar.addActionListener(e -> aplicarFiltros());
+        btnLimpiar.addActionListener(e -> limpiarFiltros());
+        btnCerrar.addActionListener(e -> dispose());
+
+        // ---------- Datos iniciales ----------
+        inicializarDatos();
+        limpiarFiltros();
     }
-    
-    private void cargarClientes() {
-        List<Cliente> clientes = clienteRepo.findAll();
-        for (Cliente cliente : clientes) {
-            cmbClientes.addItem(new ClienteItem(cliente));
+
+    private void inicializarDatos() {
+        // Base: FINALIZADA o CANCELADA
+        base = reservaRepo.findAll().stream()
+                .filter(r -> r.getEstado() == ReservaEstado.FINALIZADA
+                          || r.getEstado() == ReservaEstado.CANCELADA)
+                .collect(Collectors.toList());
+
+        // Clientes
+        cbCliente.removeAllItems();
+        cbCliente.addItem("Todos");
+        for (Cliente c : clienteRepo.findAll()) cbCliente.addItem(c.getNombre());
+
+        // Mecánicos detectados en base
+        Set<String> mecanicos = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (Reserva r : base) {
+            String m = r.getMecanicoAsignado();
+            if (m != null && !m.isBlank()) mecanicos.add(m.trim());
+        }
+        cbMecanico.removeAllItems();
+        cbMecanico.addItem("Todos");
+        for (String m : mecanicos) cbMecanico.addItem(m);
+    }
+
+    private void aplicarFiltros() {
+    // Lee selección actual
+    String clienteSel = cbCliente.getSelectedItem() == null ? null : cbCliente.getSelectedItem().toString().trim();
+    String mecSel     = cbMecanico.getSelectedItem() == null ? null : cbMecanico.getSelectedItem().toString().trim();
+
+    // Convierte fechas de los spinners (con fallback a hoy si vinieran nulas)
+    java.util.Date dIniRaw = (java.util.Date) spInicio.getValue();
+    java.util.Date dFinRaw = (java.util.Date) spFin.getValue();
+    LocalDate ini = dIniRaw == null ? LocalDate.now() : toLocal(dIniRaw);
+    LocalDate fin = dFinRaw == null ? LocalDate.now() : toLocal(dFinRaw);
+
+    // Si el rango está invertido, lo corregimos y reflejamos en los spinners
+    if (ini.isAfter(fin)) {
+        LocalDate tmp = ini;
+        ini = fin;
+        fin = tmp;
+        spInicio.setValue(toDate(ini));
+        spFin.setValue(toDate(fin));
+    }
+
+    // Normaliza etiquetas "Todos"
+    boolean filtraCliente = clienteSel != null && !clienteSel.isBlank() && !"Todos".equalsIgnoreCase(clienteSel);
+    boolean filtraMec     = mecSel     != null && !mecSel.isBlank()     && !"Todos".equalsIgnoreCase(mecSel);
+
+    // Filtrado manual (sin Collectors)
+    java.util.List<Reserva> filtradas = new java.util.ArrayList<>();
+    for (Reserva r : base) { // 'base' debe ser la lista completa de reservas cargadas
+        if (r == null || r.getFecha() == null) continue;
+
+        LocalDate d = r.getFecha().toLocalDate();
+        if (d.isBefore(ini) || d.isAfter(fin)) continue;
+
+        if (filtraCliente) {
+            String nombre = servicioReserva.obtenerNombreCliente(r.getClienteId());
+            if (nombre == null || !nombre.equalsIgnoreCase(clienteSel)) continue;
+        }
+
+        if (filtraMec) {
+            String m = r.getMecanicoAsignado();
+            if (m == null || !m.equalsIgnoreCase(mecSel)) continue;
+        }
+
+        filtradas.add(r);
+    }
+
+    llenarTabla(filtradas);
+}
+
+
+    private void limpiarFiltros() {
+        LocalDate hoy = LocalDate.now();
+        spInicio.setValue(toDate(hoy.withDayOfMonth(1)));
+        spFin.setValue(toDate(hoy.withDayOfMonth(hoy.lengthOfMonth())));
+        cbCliente.setSelectedIndex(0);
+        cbMecanico.setSelectedIndex(0);
+        llenarTabla(base);
+    }
+
+    private void llenarTabla(List<Reserva> datos) {
+        model.setRowCount(0);
+        DateTimeFormatter f = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        for (Reserva r : datos) {
+            String fecha = r.getFecha().format(f);
+            String cliente = servicioReserva.obtenerNombreCliente(r.getClienteId());
+            String mecanico = r.getMecanicoAsignado();
+            String servicio = servicioReserva.obtenerNombreServicio(r.getServicioId());
+            String estado = r.getEstado().name();
+            model.addRow(new Object[]{fecha, cliente, mecanico, servicio, estado, r.getId()});
         }
     }
-    
-    private void consultarHistorial() {
-        ClienteItem clienteItem = (ClienteItem) cmbClientes.getSelectedItem();
-        
-        if (clienteItem == null) {
-            JOptionPane.showMessageDialog(this, "Seleccione un cliente", 
-                                        "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        
-        try {
-            HistorialCliente historial = servicioCliente.getHistorial(clienteItem.cliente.getId());
-            
-            StringBuilder sb = new StringBuilder();
-            
-            // Información del cliente
-            Cliente cliente = historial.getCliente();
-            sb.append("═══════════════════════════════════════════════════════════════\n");
-            sb.append("                    HISTORIAL DE CLIENTE\n");
-            sb.append("═══════════════════════════════════════════════════════════════\n\n");
-            
-            sb.append("INFORMACIÓN DEL CLIENTE:\n");
-            sb.append("─────────────────────────────────────────────────────────────\n");
-            sb.append("ID: ").append(cliente.getId()).append("\n");
-            sb.append("Nombre: ").append(cliente.getNombre()).append("\n");
-            sb.append("Contacto: ").append(cliente.getContacto()).append("\n");
-            sb.append("Vehículo: ").append(cliente.getMarcaAuto()).append(" ").append(cliente.getModeloAuto());
-            sb.append(" (").append(cliente.getAnioAuto()).append(")\n\n");
-            
-            // Reservas
-            List<Reserva> reservas = historial.getReservas();
-            sb.append("RESERVAS (").append(reservas.size()).append(" total):\n");
-            sb.append("─────────────────────────────────────────────────────────────\n");
-            
-            if (reservas.isEmpty()) {
-                sb.append("No tiene reservas registradas.\n");
-            } else {
-                for (int i = 0; i < reservas.size(); i++) {
-                    Reserva reserva = reservas.get(i);
-                    sb.append(String.format("%d. ID: %s\n", i + 1, reserva.getId()));
-                    sb.append(String.format("   Fecha: %s\n", reserva.getFecha().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))));
-                    sb.append(String.format("   Estado: %s\n", reserva.getEstado()));
-                    sb.append(String.format("   Mecánico: %s\n", reserva.getMecanicoAsignado()));
-                    sb.append(String.format("   Servicio ID: %s\n", reserva.getServicioId()));
-                    if (i < reservas.size() - 1) sb.append("\n");
-                }
-            }
-            
-            sb.append("\n");
-            
-            // Servicios
-            List<Servicio> servicios = historial.getServicios();
-            sb.append("SERVICIOS UTILIZADOS (").append(servicios.size()).append(" únicos):\n");
-            sb.append("─────────────────────────────────────────────────────────────\n");
-            
-            if (servicios.isEmpty()) {
-                sb.append("No ha utilizado servicios aún.\n");
-            } else {
-                for (int i = 0; i < servicios.size(); i++) {
-                    Servicio servicio = servicios.get(i);
-                    sb.append(String.format("%d. %s\n", i + 1, servicio.getNombre()));
-                    sb.append(String.format("   Duración: %d minutos\n", servicio.getDuracionMin()));
-                    sb.append(String.format("   Precio: $%.2f\n", servicio.getPrecio()));
-                    sb.append(String.format("   ID: %s\n", servicio.getId()));
-                    if (i < servicios.size() - 1) sb.append("\n");
-                }
-            }
-            
-            sb.append("\n═══════════════════════════════════════════════════════════════\n");
-            sb.append("Consulta realizada: ").append(java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))).append("\n");
-            sb.append("═══════════════════════════════════════════════════════════════");
-            
-            txtHistorial.setText(sb.toString());
-            txtHistorial.setCaretPosition(0);
-            
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), 
-                                        "Error", JOptionPane.ERROR_MESSAGE);
-        }
+
+    // ---- util fechas ----
+    private static LocalDate toLocal(java.util.Date d) {
+        return d.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
     }
-    
-    // Clase helper para ComboBox
-    private static class ClienteItem {
-        Cliente cliente;
-        
-        ClienteItem(Cliente cliente) {
-            this.cliente = cliente;
-        }
-        
-        @Override
-        public String toString() {
-            return cliente.getNombre() + " - " + cliente.getMarcaAuto() + " " + 
-                   cliente.getModeloAuto() + " (" + cliente.getAnioAuto() + ")";
-        }
+    private static java.util.Date toDate(LocalDate d) {
+        return java.util.Date.from(d.atStartOfDay(ZoneId.systemDefault()).toInstant());
     }
 }

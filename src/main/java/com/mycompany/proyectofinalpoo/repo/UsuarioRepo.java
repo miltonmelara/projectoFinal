@@ -1,14 +1,18 @@
 package com.mycompany.proyectofinalpoo.repo;
 
+import com.mycompany.proyectofinalpoo.Usuario;
+import com.mycompany.proyectofinalpoo.RolUsuario;
+
 import java.util.List;
 import java.util.Optional;
 
-import com.mycompany.proyectofinalpoo.Usuario;
-
 public interface UsuarioRepo {
-    void save(Usuario usuario);
+    void save(Usuario u);                
+    void update(Usuario u);               
+    boolean delete(String username);     
+
     Optional<Usuario> findByUsername(String username);
+    boolean existsByUsername(String username);
     List<Usuario> findAll();
-    void update(Usuario usuario);
-    boolean delete(String username);
+    List<Usuario> findByRole(RolUsuario role);
 }

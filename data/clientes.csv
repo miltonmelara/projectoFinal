@@ -1,5 +1,6 @@
 id;nombre;contacto;marca;modelo;año
-84a44437-19d2-457d-b9d8-b71bd6526b55;Ana Pérez;555-111;Toyota;Corolla;2018
-38143935-dfa5-49ba-892c-b21f9751d156;Luis Gómez;555-222;Honda;Civic;2019
-84a119d8-ce50-4cd2-b66d-4b9607179480;Marta Díaz;555-333;Ford;Focus;2016
-CLI_1757433020517;Milton Melara (BMW);38542136;BMW;2013;2013
+00001;Ana Pérez;5551 1111;Toyota;Corolla;2018
+00002;Luis Gómez;5552 2222;Honda;Civic;2019
+00003;Marta Díaz;5553 3333;Ford;Focus;2016
+00004;Milton Melara (BMW);3854 2555;BMW;2013;2013
+C00005;julio;4565 2256;Audi;G3;2020
