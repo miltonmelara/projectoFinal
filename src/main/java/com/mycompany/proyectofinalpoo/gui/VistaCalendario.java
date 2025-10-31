@@ -6,6 +6,8 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.plaf.basic.BasicToggleButtonUI;
+import java.util.function.Consumer;
+import javax.swing.SwingUtilities;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -27,6 +29,7 @@ import com.mycompany.proyectofinalpoo.repo.servicios.dto.CalendarioReservas;
 import com.mycompany.proyectofinalpoo.repo.servicios.dto.DiaCalendario;
 import com.mycompany.proyectofinalpoo.gui.EstiloCombos;
 import com.mycompany.proyectofinalpoo.gui.componentes.SelectorFechaPopup;
+import com.mycompany.proyectofinalpoo.gui.componentes.GestorEventosSistema;
 
 public class VistaCalendario extends JPanel {
     private final ServicioReserva servicioReserva;
@@ -63,6 +66,10 @@ public class VistaCalendario extends JPanel {
     private final DateTimeFormatter HORA_FMT = DateTimeFormatter.ofPattern("HH:mm");
     private boolean cambiandoVista = false;
     private static final int MAX_RESERVAS_POR_CELDA = 3;
+    private final Consumer<Void> escuchaMecanicos = v -> SwingUtilities.invokeLater(() -> {
+        asegurarOpcionesMecanicos();
+        refrescarCalendario();
+    });
 
     private boolean actualizandoOpciones = false;
 
@@ -126,6 +133,7 @@ public class VistaCalendario extends JPanel {
         asegurarOpcionesMecanicos();
         refrescar();
         refrescarCalendario();
+        com.mycompany.proyectofinalpoo.gui.componentes.GestorEventosSistema.suscribirMecanicos(escuchaMecanicos);
     }
 
     private JPanel crearPanelAgenda() {

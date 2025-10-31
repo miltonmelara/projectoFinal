@@ -11,9 +11,11 @@ import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
 import com.mycompany.proyectofinalpoo.repo.ServicioRepo;
 import com.mycompany.proyectofinalpoo.repo.servicios.dto.DetalleConsumoReserva;
 import com.mycompany.proyectofinalpoo.repo.servicios.dto.ReporteConsumoReserva;
+import com.mycompany.proyectofinalpoo.repo.servicios.dto.ResumenReservaReporte;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDate;
 
 public class ServicioReporteReserva {
     private final ReservaRepo reservaRepo;
@@ -52,5 +54,37 @@ public class ServicioReporteReserva {
         String servicioNombre = servicio != null ? servicio.getNombre() : "";
 
         return new ReporteConsumoReserva(reservaId, clienteNombre, servicioNombre, fecha, detalles, totalUnidades);
+    }
+
+    public List<ResumenReservaReporte> buscarReservas(String clienteId,
+                                                      String mecanico,
+                                                      LocalDate desde,
+                                                      LocalDate hasta) {
+        List<Reserva> reservas = reservaRepo.findAll();
+        List<ResumenReservaReporte> resultados = new ArrayList<>();
+        for (Reserva r : reservas) {
+            if (clienteId != null && !clienteId.isBlank() && !clienteId.equalsIgnoreCase(r.getClienteId())) continue;
+            if (mecanico != null && !mecanico.isBlank()) {
+                String mec = r.getMecanicoAsignado();
+                if (mec == null || !mec.equalsIgnoreCase(mecanico)) continue;
+            }
+            LocalDate fecha = r.getFecha().toLocalDate();
+            if (desde != null && fecha.isBefore(desde)) continue;
+            if (hasta != null && fecha.isAfter(hasta)) continue;
+
+            Cliente cliente = clienteRepo.findById(r.getClienteId()).orElse(null);
+            Servicio servicio = servicioRepo.findById(r.getServicioId()).orElse(null);
+            String clienteNombre = cliente != null ? cliente.getNombre() : r.getClienteId();
+            String servicioNombre = servicio != null ? servicio.getNombre() : r.getServicioId();
+            String mecanicoNombre = r.getMecanicoAsignado();
+            resultados.add(new ResumenReservaReporte(r.getId(), clienteNombre, mecanicoNombre, servicioNombre, r.getFecha()));
+        }
+        resultados.sort((a, b) -> {
+            if (a.getFecha() == null && b.getFecha() == null) return 0;
+            if (a.getFecha() == null) return 1;
+            if (b.getFecha() == null) return -1;
+            return b.getFecha().compareTo(a.getFecha());
+        });
+        return resultados;
     }
 }

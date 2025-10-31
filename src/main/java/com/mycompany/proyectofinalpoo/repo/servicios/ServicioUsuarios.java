@@ -69,6 +69,21 @@ public class ServicioUsuarios {
         return repo.findByRole(RolUsuario.MECANICO);
     }
 
+    public Usuario actualizarPassword(String username, String nuevoPassword) {
+        Usuario usuario = repo.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + username));
+        if (usuario.getRol() != RolUsuario.MECANICO) {
+            throw new IllegalArgumentException("Solo se permiten contraseñas de mecánicos");
+        }
+        usuario.setPassword(nuevoPassword);
+        repo.update(usuario);
+        return usuario;
+    }
+
+    public List<Usuario> listarTodos() {
+        return repo.findAll();
+    }
+
     public Optional<Usuario> getAdmin() {
         return repo.findByRole(RolUsuario.ADMIN).stream().findFirst();
     }

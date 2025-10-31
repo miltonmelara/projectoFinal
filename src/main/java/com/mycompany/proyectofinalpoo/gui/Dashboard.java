@@ -45,13 +45,16 @@ import com.mycompany.proyectofinalpoo.repo.servicios.SecurityContext;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioCliente;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioInventario;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioReserva;
+import com.mycompany.proyectofinalpoo.repo.servicios.ServicioUsuarios;
 import com.mycompany.proyectofinalpoo.util.MigracionIdsReservas;
+import com.mycompany.proyectofinalpoo.gui.componentes.GestorEventosSistema;
 
 public class Dashboard extends JFrame {
     // Servicios / repos
     private ServicioInventario servicioInventario;
     private ServicioReserva servicioReserva;
     private ServicioCliente servicioCliente;
+    private ServicioUsuarios servicioUsuarios;
     private ClienteRepo clienteRepo;
     private ServicioRepo servicioRepo;
     private ReservaRepo reservaRepo;
@@ -69,6 +72,7 @@ public class Dashboard extends JFrame {
     private JPanel vistaEstados;
     private JPanel vistaHistorial;
     private JPanel vistaReportes;
+    private JPanel vistaUsuarios;
 
     // Estilo
     private final Color LATERAL_BG = TemaNeoBlue.SIDEBAR;
@@ -77,7 +81,7 @@ public class Dashboard extends JFrame {
     private final Color BTN_SEL    = TemaNeoBlue.navSel();
 
     // Botones de navegación
-    private BotonNavegacion bCal, bCli, bRes, bInv, bEst, bHis, bRep;
+    private BotonNavegacion bCal, bCli, bRes, bInv, bEst, bHis, bRep, bUsr;
 
     public Dashboard() {
         // Tema
@@ -216,8 +220,9 @@ public class Dashboard extends JFrame {
         bEst = nuevoBoton("Estados");
         bHis = nuevoBoton("Historial");
         bRep = nuevoBoton("Reportes");
+        bUsr = nuevoBoton("Usuarios");
 
-        java.util.List<AbstractButton> botonesOrden = java.util.Arrays.asList(bCal, bCli, bRes, bInv, bEst, bHis, bRep);
+        java.util.List<AbstractButton> botonesOrden = java.util.Arrays.asList(bCal, bCli, bRes, bInv, bEst, bHis, bRep, bUsr);
         if (esAdmin()) {
             for (AbstractButton boton : botonesOrden) agregarBotonLateral(contBotones, boton);
         } else {
@@ -239,6 +244,7 @@ public class Dashboard extends JFrame {
         vistaEstados    = crearVistaEstadosEmbebida();
         vistaHistorial  = crearVistaHistorialEmbebida();
         vistaReportes   = crearVistaReportesEmbebida();
+        if (esAdmin()) vistaUsuarios = crearVistaUsuariosEmbebida();
 
         contenido.add(vistaCalendario, "CAL");
         if (esAdmin() && vistaClientes != null) contenido.add(vistaClientes, "CLI");
@@ -247,6 +253,7 @@ public class Dashboard extends JFrame {
         contenido.add(vistaEstados,    "EST");
         contenido.add(vistaHistorial,  "HIS");
         contenido.add(vistaReportes,   "REP");
+        if (esAdmin() && vistaUsuarios != null) contenido.add(vistaUsuarios, "USR");
 
         // ===== NAVEGACIÓN POR ROL =====
         // Siempre visibles para ambos
@@ -259,18 +266,21 @@ public class Dashboard extends JFrame {
             bInv.addActionListener(e -> { tarjetas.show(contenido, "INV"); seleccionar(bInv); });
             bEst.addActionListener(e -> { tarjetas.show(contenido, "EST"); seleccionar(bEst); });
             bRep.addActionListener(e -> { tarjetas.show(contenido, "REP"); seleccionar(bRep); });
+            bUsr.addActionListener(e -> { tarjetas.show(contenido, "USR"); seleccionar(bUsr); });
 
             // Asegurar visibilidad admin
             bCli.setVisible(true);
             bInv.setVisible(true);
             bEst.setVisible(true);
             bRep.setVisible(true);
+            bUsr.setVisible(true);
         } else {
             // Ocultar módulos no permitidos al mecánico
             bCli.setVisible(false);
             bInv.setVisible(false);
             bEst.setVisible(false);
             bRep.setVisible(false);
+            bUsr.setVisible(false);
         }
 
         add(encabezado, BorderLayout.NORTH);
@@ -336,6 +346,7 @@ public class Dashboard extends JFrame {
         if (bInv != null && bInv.isVisible()) bInv.setSelected(seleccionado == bInv);
         if (bEst != null && bEst.isVisible()) bEst.setSelected(seleccionado == bEst);
         if (bRep != null && bRep.isVisible()) bRep.setSelected(seleccionado == bRep);
+        if (bUsr != null && bUsr.isVisible()) bUsr.setSelected(seleccionado == bUsr);
 
         if (bCal != null) bCal.repaint();
         if (bHis != null) bHis.repaint();
@@ -344,6 +355,7 @@ public class Dashboard extends JFrame {
         if (bInv != null) bInv.repaint();
         if (bEst != null) bEst.repaint();
         if (bRep != null) bRep.repaint();
+        if (bUsr != null) bUsr.repaint();
     }
 
     /* ===================== Vistas embebidas ===================== */
@@ -385,6 +397,13 @@ public class Dashboard extends JFrame {
         return vista;
     }
 
+    private JPanel crearVistaUsuariosEmbebida() {
+        FormularioUsuarios panel = new FormularioUsuarios(servicioUsuarios);
+        JPanel cont = new JPanel(new BorderLayout());
+        cont.add(panel, BorderLayout.CENTER);
+        return cont;
+    }
+
     /* ===================== Repos/Servicios ===================== */
     private void initReposServicios() {
         Path dataDir = Path.of("data");
@@ -397,6 +416,7 @@ public class Dashboard extends JFrame {
         var consumoRepo = new com.mycompany.proyectofinalpoo.repo.file.ConsumoParteFileRepo(dataDir);
         var usuarioRepo = new com.mycompany.proyectofinalpoo.repo.file.UsuarioFileRepo(dataDir);
         servicioReserva   = new ServicioReserva(reservaRepo, servicioRepo, parteRepo, clienteRepo, usuarioRepo, consumoRepo);
+        servicioUsuarios  = new ServicioUsuarios(usuarioRepo);
     }
 
     /* ===================== UIManager: bordes de TitledBorder ===================== */

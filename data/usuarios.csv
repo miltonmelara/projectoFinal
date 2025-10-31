@@ -1,6 +1,9 @@
 username;password;rol
 Carlos Rodriguez;1234;MECANICO
-Ana Perez;1234;MECANICO
+Ana Perez;mecanico1;MECANICO
 Maria Gonzales;1234;MECANICO
 Luis Martinez;1234;MECANICO
 admin;admin123;ADMIN
+Juan Leonardo;mecanico2;MECANICO
+Pedro Martinez;mecanico3;MECANICO
+Miguel Peraza;mecanico4!;MECANICO

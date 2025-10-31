@@ -112,6 +112,18 @@ public final class TemaNeoBlue {
                     });
                 }
             }
+            if (c instanceof JList<?> list) {
+                list.setBackground(BG);
+                list.setForeground(TXT);
+                list.setSelectionBackground(new Color(58, 105, 198));
+                list.setSelectionForeground(Color.WHITE);
+                list.setBorder(BorderFactory.createLineBorder(new Color(100, 140, 220, 80), 1, true));
+            }
+            if (c instanceof JFileChooser chooser) {
+                chooser.setBackground(BG);
+                chooser.setForeground(TXT);
+                chooser.setOpaque(true);
+            }
             if (c instanceof JTable t) {
                 t.setShowGrid(true);
                 t.setGridColor(GRID);

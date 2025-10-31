@@ -32,6 +32,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.mycompany.proyectofinalpoo.gui.componentes.SelectorFechaPopup;
 import java.util.function.Consumer;
 import javax.swing.plaf.basic.BasicToggleButtonUI;
+import com.mycompany.proyectofinalpoo.gui.componentes.GestorEventosSistema;
+import javax.swing.SwingUtilities;
 import javax.swing.SpinnerNumberModel;
 
 
@@ -48,6 +50,9 @@ public class FormularioReserva extends JFrame {
     private boolean esMecanico;
     private String mecanicoActual;
     private Consumer<LocalDate> alGuardar;
+    private final Consumer<Void> escuchaMecanicos = v -> SwingUtilities.invokeLater(() -> {
+        if (!esMecanico) cargarMecanicos();
+    });
     
     private final JComboBox<ClienteItem> cmbClientes = new JComboBox<>();
     private final JComboBox<ServicioItem> cmbServicios = new JComboBox<>();
@@ -90,6 +95,7 @@ public class FormularioReserva extends JFrame {
         initComponents();
         cargarDatos();
         configurarValidaciones();
+        GestorEventosSistema.suscribirMecanicos(escuchaMecanicos);
     }
     
     // Constructor compatible con versión anterior
@@ -107,6 +113,7 @@ public class FormularioReserva extends JFrame {
         initComponents();
         cargarDatos();
         configurarValidaciones();
+        GestorEventosSistema.suscribirMecanicos(escuchaMecanicos);
     }
 
     private void inicializarComponentesBase() {
@@ -264,6 +271,11 @@ public class FormularioReserva extends JFrame {
         if (tabReservas != null) tabReservas.setSelected("RESERVAS".equals(clave));
         if (tabDisponibilidad != null) tabDisponibilidad.setSelected("DISPONIBLE".equals(clave));
         cardLayout.show(panelContenido, clave);
+        if ("RESERVAS".equals(clave)) {
+            cargarReservasExistentes();
+        } else if ("DISPONIBLE".equals(clave)) {
+            actualizarDisponibilidadMecanicos();
+        }
         refrescarTabs();
     }
 
@@ -492,13 +504,8 @@ panel.add(cmbMecanicos, gbc);
         
         // Botones
         JPanel panelBotones = new JPanel(new FlowLayout());
-        JButton btnActualizar = new JButton("Actualizar Disponibilidad");
         JButton btnSeleccionar = new JButton("Seleccionar Mecánico");
-        
-        btnActualizar.addActionListener(e -> actualizarDisponibilidadMecanicos());
         btnSeleccionar.addActionListener(e -> seleccionarMecanico());
-        
-        panelBotones.add(btnActualizar);
         panelBotones.add(btnSeleccionar);
         panel.add(panelBotones, BorderLayout.SOUTH);
         
@@ -565,6 +572,12 @@ panel.add(cmbMecanicos, gbc);
                 alGuardar.accept(fecha);
             } catch (Exception ignored) {}
         }
+    }
+
+    @Override
+    public void dispose() {
+        GestorEventosSistema.desuscribirMecanicos(escuchaMecanicos);
+        super.dispose();
     }
     
     private void configurarValidaciones() {
@@ -864,6 +877,12 @@ private void actualizarPartesRequeridas(Servicio servicio) {
         modeloReservasExistentes.addRow(fila);
     }
     
+    if (txtFiltroBuscar != null) {
+        String texto = txtFiltroBuscar.getText();
+        if (texto != null && !texto.isBlank()) {
+            aplicarFiltrosBusqueda();
+        }
+    }
     System.out.println("Tabla actualizada con " + reservas.size() + " reservas");
 }
     
@@ -871,7 +890,7 @@ private void actualizarPartesRequeridas(Servicio servicio) {
     private void aplicarFiltrosReservas() {
         // Esta función aplicaría filtros a la tabla, similar al FormularioInventario
         // Por simplicidad, no implemento el filtro complejo aquí
-        txtResultado.setText("Use 'Cargar Reservas' después de cambiar filtros");
+        txtResultado.setText("Las reservas se actualizan automáticamente al abrir la pestaña");
     }
 
     private List<Reserva> obtenerReservasBase() {
@@ -1019,15 +1038,29 @@ private void actualizarPartesRequeridas(Servicio servicio) {
             estadoActual = ReservaEstado.PROGRAMADA;
         }
 
-        ReservaEstado nuevoEstado = (ReservaEstado) JOptionPane.showInputDialog(
-                this,
-                "Selecciona el nuevo estado",
-                "Cambiar Estado",
-                JOptionPane.PLAIN_MESSAGE,
-                null,
-                ReservaEstado.values(),
-                estadoActual);
+        JPanel panelDialogo = new JPanel(new BorderLayout(8, 8));
+        panelDialogo.setOpaque(false);
+        JLabel etiqueta = new JLabel("Selecciona el nuevo estado");
+        JComboBox<ReservaEstado> comboEstados = new JComboBox<>(ReservaEstado.values());
+        comboEstados.setSelectedItem(estadoActual);
+        comboEstados.setPreferredSize(new Dimension(260, 32));
+        EstiloCombos.aplicarDarkAzul(comboEstados);
+        comboEstados.setBackground(TemaNeoBlue.SURFACE);
+        comboEstados.setForeground(TemaNeoBlue.TXT);
+        panelDialogo.add(etiqueta, BorderLayout.NORTH);
+        panelDialogo.add(comboEstados, BorderLayout.CENTER);
+        TemaNeoBlue.estilizar(panelDialogo);
 
+        int opcion = JOptionPane.showConfirmDialog(
+                this,
+                panelDialogo,
+                "Cambiar Estado",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE);
+
+        if (opcion != JOptionPane.OK_OPTION) return;
+
+        ReservaEstado nuevoEstado = (ReservaEstado) comboEstados.getSelectedItem();
         if (nuevoEstado == null || nuevoEstado == estadoActual) return;
 
         try {
@@ -1150,10 +1183,6 @@ private void actualizarPartesRequeridas(Servicio servicio) {
     
     // Panel superior con botón cargar y búsqueda
     JPanel panelSuperior = new JPanel(new FlowLayout());
-    
-    JButton btnCargar = new JButton("Cargar Reservas");
-    btnCargar.addActionListener(e -> cargarReservasExistentes());
-    panelSuperior.add(btnCargar);
     
     panelSuperior.add(new JLabel("Buscar:"));
     txtFiltroBuscar = new JTextField(15);

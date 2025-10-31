@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.mycompany.proyectofinalpoo.ConsumoParte;
 import com.mycompany.proyectofinalpoo.Parte;
 import com.mycompany.proyectofinalpoo.Reserva;
 import com.mycompany.proyectofinalpoo.ReservaEstado;
@@ -43,6 +44,9 @@ public class ServicioReserva {
         this.clienteRepo = clienteRepo;
         this.usuarioRepo = usuarioRepo;
         this.consumoRepo = consumoRepo;
+        if (this.consumoRepo != null) {
+            sincronizarConsumosPendientes();
+        }
     }
 
     public Reserva createReserva(String clienteId, String servicioId, LocalDateTime fecha, String mecanico) {
@@ -152,8 +156,10 @@ public class ServicioReserva {
 
         ReservaEstado estadoAnterior = reserva.getEstado();
         reserva.setEstado(nuevoEstado);
-        boolean debeDeducir = (nuevoEstado == ReservaEstado.FINALIZADA || nuevoEstado == ReservaEstado.ENTREGADA)
-                && !(estadoAnterior == ReservaEstado.FINALIZADA || estadoAnterior == ReservaEstado.ENTREGADA);
+        boolean estadoNuevoFinal = (nuevoEstado == ReservaEstado.FINALIZADA || nuevoEstado == ReservaEstado.ENTREGADA);
+        boolean estadoPrevioFinal = (estadoAnterior == ReservaEstado.FINALIZADA || estadoAnterior == ReservaEstado.ENTREGADA);
+        boolean debeDeducir = estadoNuevoFinal && !estadoPrevioFinal;
+        boolean debeRestaurar = estadoPrevioFinal && !estadoNuevoFinal;
         if (debeDeducir) {
             Servicio servicio = servicioRepo.findById(reserva.getServicioId()).orElseThrow(() -> new NotFoundException("Servicio no encontrado: " + reserva.getServicioId()));
             Map<String,Integer> req = servicio.getPartesRequeridas();
@@ -170,11 +176,42 @@ public class ServicioReserva {
                     reserva.setEstado(estadoAnterior);
                     throw new StockException("Stock insuficiente para: " + String.join(", ", faltantes));
                 }
+                List<ConsumoParte> consumosGenerados = new ArrayList<>();
+                LocalDateTime marcaTiempo = LocalDateTime.now();
                 for (Map.Entry<String,Integer> e : req.entrySet()) {
                     Parte p = inventario.get(e.getKey());
                     p.reducirCantidad(e.getValue());
                     parteRepo.update(p);
+                    if (consumoRepo != null) {
+                        ConsumoParte consumo = new ConsumoParte();
+                        consumo.setReservaId(reserva.getId());
+                        consumo.setParteId(e.getKey());
+                        consumo.setCantidad(e.getValue());
+                        consumo.setFechaHora(marcaTiempo);
+                        consumosGenerados.add(consumo);
+                    }
                 }
+                if (consumoRepo != null) {
+                    consumoRepo.deleteByReservaId(reserva.getId());
+                    if (!consumosGenerados.isEmpty()) {
+                        consumoRepo.saveAll(consumosGenerados);
+                    }
+                }
+            }
+        } else if (debeRestaurar && consumoRepo != null) {
+            List<ConsumoParte> registrados = consumoRepo.findByReservaId(reserva.getId());
+            if (!registrados.isEmpty()) {
+                Map<String, Parte> inventario = new HashMap<>();
+                for (Parte p : parteRepo.findAll()) inventario.put(p.getId(), p);
+                for (ConsumoParte consumo : registrados) {
+                    Parte parte = inventario.get(consumo.getParteId());
+                    if (parte != null) {
+                        int nuevaCantidad = parte.getCantidad() + Math.max(0, consumo.getCantidad());
+                        parte.setCantidad(nuevaCantidad);
+                        parteRepo.update(parte);
+                    }
+                }
+                consumoRepo.deleteByReservaId(reserva.getId());
             }
         }
         reservaRepo.update(reserva);
@@ -313,6 +350,37 @@ public class ServicioReserva {
         r.setEstado(nuevoEstado == null ? ReservaEstado.FINALIZADA : nuevoEstado);
         reservaRepo.update(r);
         return r;
+    }
+
+    private void sincronizarConsumosPendientes() {
+        List<Reserva> reservas = reservaRepo.findAll();
+        if (reservas.isEmpty()) return;
+        List<ConsumoParte> porRegistrar = new ArrayList<>();
+        for (Reserva reserva : reservas) {
+            if (reserva.getId() == null) continue;
+            ReservaEstado estado = reserva.getEstado();
+            if (!(estado == ReservaEstado.FINALIZADA || estado == ReservaEstado.ENTREGADA)) continue;
+            if (!consumoRepo.findByReservaId(reserva.getId()).isEmpty()) continue;
+            Servicio servicio = servicioRepo.findById(reserva.getServicioId()).orElse(null);
+            if (servicio == null) continue;
+            Map<String,Integer> requeridas = servicio.getPartesRequeridas();
+            if (requeridas == null || requeridas.isEmpty()) continue;
+            LocalDateTime marcaTiempo = reserva.getFecha() != null ? reserva.getFecha() : LocalDateTime.now();
+            for (Map.Entry<String,Integer> entry : requeridas.entrySet()) {
+                Integer valor = entry.getValue();
+                int cantidad = valor == null ? 0 : valor;
+                if (cantidad <= 0) continue;
+                ConsumoParte consumo = new ConsumoParte();
+                consumo.setReservaId(reserva.getId());
+                consumo.setParteId(entry.getKey());
+                consumo.setCantidad(cantidad);
+                consumo.setFechaHora(marcaTiempo);
+                porRegistrar.add(consumo);
+            }
+        }
+        if (!porRegistrar.isEmpty()) {
+            consumoRepo.saveAll(porRegistrar);
+        }
     }
 
     public java.util.Map<String,Integer> obtenerPartesRequeridas(String servicioId) {

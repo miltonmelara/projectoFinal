@@ -2,8 +2,6 @@ package com.mycompany.proyectofinalpoo.gui;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.nio.file.Path;
 
 import com.mycompany.proyectofinalpoo.RolUsuario;
@@ -118,21 +116,21 @@ public class InicioSesion extends JFrame {
         getRootPane().setDefaultButton(botonEntrar);
     }
 
+    private volatile boolean procesandoLogin = false;
+
     private void configurarEventos() {
         botonEntrar.addActionListener(e -> intentarInicioSesion());
         botonSalir.addActionListener(e -> System.exit(0));
-        campoContrasena.addKeyListener(new KeyAdapter() {
-            @Override public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) intentarInicioSesion();
-            }
-        });
     }
 
     private void intentarInicioSesion() {
+    if (procesandoLogin) return;
+    procesandoLogin = true;
     String usuario = campoUsuario.getText().trim();
     String contrasena = new String(campoContrasena.getPassword());
     if (usuario.isEmpty() || contrasena.isEmpty()) {
         JOptionPane.showMessageDialog(this, "Usuario y contraseña requeridos", "Atención", JOptionPane.WARNING_MESSAGE);
+        procesandoLogin = false;
         return;
     }
 
@@ -141,6 +139,7 @@ public class InicioSesion extends JFrame {
 
     if (encontrado == null || !contrasena.equals(encontrado.getPassword())) {
         JOptionPane.showMessageDialog(this, "Credenciales inválidas", "Error", JOptionPane.ERROR_MESSAGE);
+        procesandoLogin = false;
         return;
     }
 
@@ -153,6 +152,7 @@ public class InicioSesion extends JFrame {
             Dashboard panel = new Dashboard();
             panel.setVisible(true);
             dispose(); // cierra el login SOLO si el dashboard se abrió bien
+            procesandoLogin = false;
         } catch (Throwable ex) {
             ex.printStackTrace(); // para ver el stacktrace en la consola
             JOptionPane.showMessageDialog(
@@ -161,6 +161,7 @@ public class InicioSesion extends JFrame {
                 "Error al abrir Dashboard",
                 JOptionPane.ERROR_MESSAGE
             );
+            procesandoLogin = false;
         }
     });
 }
