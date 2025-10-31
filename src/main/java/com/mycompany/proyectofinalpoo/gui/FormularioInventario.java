@@ -15,7 +15,7 @@ import com.mycompany.proyectofinalpoo.repo.ParteRepo;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioInventario;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.DefaultTableCellRenderer;
-
+import javax.swing.plaf.basic.BasicToggleButtonUI;
 
 public class FormularioInventario extends JFrame {
     private ServicioInventario servicioInventario;
@@ -28,10 +28,15 @@ public class FormularioInventario extends JFrame {
     private TableRowSorter<DefaultTableModel> sorter;
     private JTextArea txtResultado;
     private JButton btnAgregar, btnEditar, btnEliminar, btnActualizar;
+    private CardLayout cardLayout;
+    private JPanel panelContenido;
+    private JToggleButton tabAgregarEditar;
+    private JToggleButton tabVerInventario;
     private boolean modoEdicion = false;
     private String idParteEditando = null;
     
     public FormularioInventario(ServicioInventario servicioInventario, ParteRepo parteRepo) {
+        TemaNeoBlue.aplicar();
         this.servicioInventario = servicioInventario;
         this.parteRepo = parteRepo;
         initComponents();
@@ -41,6 +46,7 @@ public class FormularioInventario extends JFrame {
     
     // Constructor compatible con la versión anterior
     public FormularioInventario(ServicioInventario servicioInventario) {
+        TemaNeoBlue.aplicar();
         this.servicioInventario = servicioInventario;
         this.parteRepo = null; // Se inicializará después si es necesario
         initComponents();
@@ -54,30 +60,121 @@ public class FormularioInventario extends JFrame {
         setTitle("Gestión Avanzada de Inventario");
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout());
-        
-        // Panel principal con pestañas
-        JTabbedPane tabbedPane = new JTabbedPane();
-        
-        // Pestaña 1: Agregar/Editar
-        JPanel panelFormulario = crearPanelFormulario();
-        tabbedPane.addTab("Agregar/Editar Parte", panelFormulario);
-        
-        // Pestaña 2: Ver Inventario
-        JPanel panelInventario = crearPanelInventario();
-        tabbedPane.addTab("Ver Inventario", panelInventario);
-        
-        add(tabbedPane, BorderLayout.CENTER);
-        
+
+        // Barra de pestañas personalizada
+        JPanel panelTabs = new JPanel(new FlowLayout(FlowLayout.LEFT, 14, 14));
+        panelTabs.setOpaque(false);
+        ButtonGroup grupoTabs = new ButtonGroup();
+
+        tabAgregarEditar = crearTabToggle("Agregar/Editar Parte");
+        tabVerInventario = crearTabToggle("Ver Inventario");
+
+        grupoTabs.add(tabAgregarEditar);
+        grupoTabs.add(tabVerInventario);
+
+        panelTabs.add(tabAgregarEditar);
+        panelTabs.add(tabVerInventario);
+
+        add(panelTabs, BorderLayout.NORTH);
+
+        tabAgregarEditar.addActionListener(e -> {
+            cardLayout.show(panelContenido, "FORM");
+            tabAgregarEditar.repaint();
+            tabVerInventario.repaint();
+        });
+        tabVerInventario.addActionListener(e -> {
+            cardLayout.show(panelContenido, "LIST");
+            tabAgregarEditar.repaint();
+            tabVerInventario.repaint();
+        });
+
+        // Contenido con CardLayout
+        cardLayout = new CardLayout();
+        panelContenido = new JPanel(cardLayout);
+        panelContenido.setOpaque(false);
+        panelContenido.add(crearPanelFormulario(), "FORM");
+        panelContenido.add(crearPanelInventario(), "LIST");
+        add(panelContenido, BorderLayout.CENTER);
+
         // Panel de resultados en la parte inferior
         txtResultado = new JTextArea(4, 30);
         txtResultado.setEditable(false);
-        txtResultado.setBackground(Color.LIGHT_GRAY);
+        txtResultado.setOpaque(true);
+        txtResultado.setBackground(TemaNeoBlue.SURFACE);
+        txtResultado.setForeground(TemaNeoBlue.TXT);
         JScrollPane scrollResultado = new JScrollPane(txtResultado);
         scrollResultado.setBorder(BorderFactory.createTitledBorder("Resultado"));
         add(scrollResultado, BorderLayout.SOUTH);
-        
+
+        tabAgregarEditar.setSelected(true);
+        cardLayout.show(panelContenido, "FORM");
+
+        TemaNeoBlue.estilizar(getContentPane());
+
         pack();
         setLocationRelativeTo(null);
+    }
+
+    private JToggleButton crearTabToggle(String texto) {
+        JToggleButton toggle = new JToggleButton(texto) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                boolean selected = isSelected();
+
+                int w = getWidth();
+                int h = getHeight();
+                int radius = 26;
+
+                Color bg = selected ? TemaNeoBlue.ACCENT : new Color(45, 68, 102, 180);
+                Color border = selected ? new Color(190, 230, 255, 190) : new Color(110, 140, 200, 90);
+                Color shadow = new Color(0, 0, 0, 90);
+
+                Polygon tabShape = new Polygon();
+                tabShape.addPoint(0, h);
+                tabShape.addPoint(0, radius / 2);
+                tabShape.addPoint(radius / 3, 0);
+                tabShape.addPoint(w - radius / 3, 0);
+                tabShape.addPoint(w, radius / 2);
+                tabShape.addPoint(w, h);
+
+                g2.setColor(shadow);
+                Polygon shadowShape = new Polygon();
+                for (int i = 0; i < tabShape.npoints; i++) {
+                    shadowShape.addPoint(tabShape.xpoints[i], tabShape.ypoints[i] + 3);
+                }
+                g2.fillPolygon(shadowShape);
+
+                g2.setColor(bg);
+                g2.fillPolygon(tabShape);
+
+                g2.setStroke(new BasicStroke(1.4f));
+                g2.setColor(border);
+                g2.drawPolygon(tabShape);
+
+                g2.setFont(getFont());
+                FontMetrics fm = g2.getFontMetrics();
+                String txt = getText();
+                int textX = (w - fm.stringWidth(txt)) / 2;
+                int textY = (h + fm.getAscent() - fm.getDescent()) / 2;
+                g2.setColor(Color.WHITE);
+                g2.drawString(txt, textX, textY);
+                g2.dispose();
+            }
+        };
+        toggle.setUI(new BasicToggleButtonUI());
+        toggle.setFocusPainted(false);
+        toggle.setBorderPainted(false);
+        toggle.setContentAreaFilled(false);
+        toggle.setOpaque(false);
+        toggle.setFont(TemaNeoBlue.FONT.deriveFont(Font.BOLD, 14f));
+        toggle.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        toggle.setMargin(new Insets(12, 26, 12, 26));
+        toggle.setHorizontalAlignment(SwingConstants.CENTER);
+        toggle.setForeground(TemaNeoBlue.TXT);
+        toggle.addChangeListener(e -> toggle.repaint());
+        return toggle;
     }
     
     private JPanel crearPanelFormulario() {

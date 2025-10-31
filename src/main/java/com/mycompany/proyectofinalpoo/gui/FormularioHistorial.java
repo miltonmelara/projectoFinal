@@ -18,6 +18,7 @@ import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
 import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioCliente;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioReserva;
+import com.mycompany.proyectofinalpoo.gui.componentes.SelectorFechaPopup;
 
 public class FormularioHistorial extends JFrame {
     private final ServicioCliente servicioCliente;
@@ -71,6 +72,8 @@ public class FormularioHistorial extends JFrame {
         // Edición de fechas
         spInicio.setEditor(new JSpinner.DateEditor(spInicio, "yyyy-MM-dd"));
         spFin.setEditor(new JSpinner.DateEditor(spFin, "yyyy-MM-dd"));
+        JComponent compInicio = SelectorFechaPopup.adjuntar(spInicio);
+        JComponent compFin = SelectorFechaPopup.adjuntar(spFin);
 
         // Panel de filtros
         TemaNeoBlue.CardPanel filtros = new TemaNeoBlue.CardPanel();
@@ -88,9 +91,9 @@ public class FormularioHistorial extends JFrame {
         gc.gridx=3; gc.gridy=0; filtros.add(cbMecanico, gc);
 
         gc.gridx=0; gc.gridy=1; filtros.add(new JLabel("Inicio:"), gc);
-        gc.gridx=1; gc.gridy=1; filtros.add(spInicio, gc);
+        gc.gridx=1; gc.gridy=1; filtros.add(compInicio, gc);
         gc.gridx=2; gc.gridy=1; filtros.add(new JLabel("Fin:"), gc);
-        gc.gridx=3; gc.gridy=1; filtros.add(spFin, gc);
+        gc.gridx=3; gc.gridy=1; filtros.add(compFin, gc);
 
         JPanel acciones = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         acciones.add(btnAplicar);

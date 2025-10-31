@@ -6,6 +6,8 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
+import java.util.function.Consumer;
+import java.time.LocalDate;
 import com.mycompany.proyectofinalpoo.Cliente;
 import com.mycompany.proyectofinalpoo.Reserva;
 import com.mycompany.proyectofinalpoo.ReservaEstado;
@@ -27,6 +29,7 @@ public class FormularioEstadoReserva extends JFrame {
     private DefaultTableModel modeloTabla;
     private JComboBox<ReservaEstado> cmbEstados;
     private JTextArea txtResultado;
+    private Consumer<LocalDate> onCambioReserva;
     
     // Constructor actualizado para incluir los repositorios adicionales
     public FormularioEstadoReserva(ServicioReserva servicioReserva, ReservaRepo reservaRepo, 
@@ -37,6 +40,10 @@ public class FormularioEstadoReserva extends JFrame {
         this.servicioRepo = servicioRepo;
         initComponents();
         cargarReservas();
+    }
+
+    public void setOnCambioReserva(Consumer<LocalDate> listener) {
+        this.onCambioReserva = listener;
     }
     
     // Constructor compatible con versión anterior (fallback)
@@ -139,7 +146,7 @@ public class FormularioEstadoReserva extends JFrame {
         btnCambiarEstado.addActionListener(e -> cambiarEstado());
         btnEliminarReserva.addActionListener(e -> eliminarReserva());
         btnCerrar.addActionListener(e -> dispose());
-        
+
         panelControl.add(btnCambiarEstado);
         panelControl.add(btnEliminarReserva);
         panelControl.add(btnCerrar);
@@ -278,6 +285,9 @@ public class FormularioEstadoReserva extends JFrame {
                                          reservaId, nombreCliente, estadoAnterior, nuevoEstado);
             
             mostrarMensaje(mensaje, new Color(0, 120, 0));
+            if (onCambioReserva != null && reservaActualizada != null && reservaActualizada.getFecha() != null) {
+                onCambioReserva.accept(reservaActualizada.getFecha().toLocalDate());
+            }
             
         } catch (Exception ex) {
             String mensajeError = "❌ Error cambiando estado: " + ex.getMessage();
@@ -339,6 +349,13 @@ public class FormularioEstadoReserva extends JFrame {
                 
                 // Recargar la tabla
                 cargarReservas();
+                if (onCambioReserva != null) {
+                    LocalDate fechaLocal = null;
+                    try {
+                        fechaLocal = pantallaAFecha(fecha);
+                    } catch (Exception ignored) {}
+                    onCambioReserva.accept(fechaLocal);
+                }
             }
             
         } catch (Exception ex) {
@@ -357,5 +374,14 @@ public class FormularioEstadoReserva extends JFrame {
             txtResultado.setText(mensaje);
             txtResultado.setCaretPosition(0);
         });
+    }
+
+    private LocalDate pantallaAFecha(String texto) {
+        if (texto == null) return null;
+        try {
+            return LocalDate.parse(texto.trim(), DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

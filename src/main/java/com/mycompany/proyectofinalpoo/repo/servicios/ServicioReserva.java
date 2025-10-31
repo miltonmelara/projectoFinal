@@ -201,15 +201,31 @@ public class ServicioReserva {
     }
 
     public DiaCalendario obtenerDiaCalendario(LocalDate fecha, String mecanico, ReservaEstado estado) {
-        requireAdmin();
+        Usuario usuario = SecurityContext.requireUser();
+        boolean esAdmin = ControlAcceso.tieneRol(usuario, RolUsuario.ADMIN);
+        boolean esMecanico = ControlAcceso.tieneRol(usuario, RolUsuario.MECANICO);
+        if (!esAdmin && !esMecanico) {
+            throw new AutorizacionException("rol no autorizado para consultar el calendario");
+        }
         if (fecha == null) throw new ValidationException("fecha requerida");
         String filtroMecanico = normalizarFiltroMecanico(mecanico);
+        if (esMecanico) {
+            filtroMecanico = normalizarFiltroMecanico(usuario.getUsername());
+            if (filtroMecanico == null) {
+                throw new AutorizacionException("mecánico sin nombre configurado");
+            }
+        }
         List<Reserva> reservas = filtrarReservas(reservaRepo.findByFecha(fecha), filtroMecanico, estado);
         return construirDiaCalendario(fecha, reservas);
     }
 
     public CalendarioReservas generarCalendario(LocalDate fechaInicio, LocalDate fechaFin, String mecanico, ReservaEstado estado) {
-        requireAdmin();
+        Usuario usuario = SecurityContext.requireUser();
+        boolean esAdmin = ControlAcceso.tieneRol(usuario, RolUsuario.ADMIN);
+        boolean esMecanico = ControlAcceso.tieneRol(usuario, RolUsuario.MECANICO);
+        if (!esAdmin && !esMecanico) {
+            throw new AutorizacionException("rol no autorizado para consultar el calendario");
+        }
         if (fechaInicio == null || fechaFin == null) throw new ValidationException("rango requerido");
         LocalDate inicio = fechaInicio;
         LocalDate fin = fechaFin;
@@ -218,6 +234,12 @@ public class ServicioReserva {
             fin = fechaInicio;
         }
         String filtroMecanico = normalizarFiltroMecanico(mecanico);
+        if (esMecanico) {
+            filtroMecanico = normalizarFiltroMecanico(usuario.getUsername());
+            if (filtroMecanico == null) {
+                throw new AutorizacionException("mecánico sin nombre configurado");
+            }
+        }
         List<Reserva> reservas = reservaRepo.findEntreFechas(inicio, fin);
         Map<LocalDate, List<Reserva>> agrupadas = agruparPorFecha(reservas);
         List<DiaCalendario> dias = new ArrayList<>();

@@ -14,6 +14,7 @@ import java.util.Map;
 import com.mycompany.proyectofinalpoo.Cliente;
 import com.mycompany.proyectofinalpoo.Parte;
 import com.mycompany.proyectofinalpoo.Reserva;
+import com.mycompany.proyectofinalpoo.ReservaEstado;
 import com.mycompany.proyectofinalpoo.Servicio;
 import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
 import com.mycompany.proyectofinalpoo.repo.ParteRepo;
@@ -28,6 +29,10 @@ import com.mycompany.proyectofinalpoo.repo.file.UsuarioFileRepo;
 import java.nio.file.Path;
 import java.awt.Dimension;
 import java.util.concurrent.atomic.AtomicBoolean;
+import com.mycompany.proyectofinalpoo.gui.componentes.SelectorFechaPopup;
+import java.util.function.Consumer;
+import javax.swing.plaf.basic.BasicToggleButtonUI;
+import javax.swing.SpinnerNumberModel;
 
 
 
@@ -38,21 +43,37 @@ public class FormularioReserva extends JFrame {
     private ServicioRepo servicioRepo;
     private ParteRepo parteRepo;
     private ReservaRepo reservaRepo;
-    private Runnable alGuardar;
+    private Usuario usuarioActual;
+    private RolUsuario rolActual;
+    private boolean esMecanico;
+    private String mecanicoActual;
+    private Consumer<LocalDate> alGuardar;
     
-    private JComboBox<ClienteItem> cmbClientes;
-    private JComboBox<ServicioItem> cmbServicios;
-    private JComboBox<String> cmbMecanicos;
+    private final JComboBox<ClienteItem> cmbClientes = new JComboBox<>();
+    private final JComboBox<ServicioItem> cmbServicios = new JComboBox<>();
+    private final JComboBox<String> cmbMecanicos = new JComboBox<>();
     private JSpinner spnFecha, spnHora, spnMinutos;
-    private JTextArea txtResultado, txtVistaPrevia, txtPartesRequeridas, txtDetalleReserva;
-    private JLabel lblCostoTotal, lblDuracionTotal, lblDisponibilidad;
+    private JTextArea txtResultado = new JTextArea(4, 30);
+    private final JTextArea txtVistaPrevia = new JTextArea();
+    private final JTextArea txtPartesRequeridas = new JTextArea();
+    private final JTextArea txtDetalleReserva = new JTextArea();
+    private final JLabel lblCostoTotal = new JLabel("Costo Total: --");
+    private final JLabel lblDuracionTotal = new JLabel("Duración: --");
+    private final JLabel lblDisponibilidad = new JLabel("Estado: --");
     private JTable tablaMecanicos, tablaReservasExistentes;
     private DefaultTableModel modeloMecanicos, modeloReservasExistentes;
-    private JCheckBox chkValidarHorario, chkValidarFinSemana;
+    private final JCheckBox chkValidarHorario = new JCheckBox("Validar horario laboral (6:00-18:00)", true);
+    private final JCheckBox chkValidarFinSemana = new JCheckBox("Restringir fines de semana", true);
     private JComboBox<String> cmbFiltroMecanico, cmbFiltroEstado;
     private JTextField txtFiltroBuscar;
     private JSpinner spnFiltroFecha;
     private TableRowSorter<DefaultTableModel> sorterReservas;
+    private CardLayout cardLayout;
+    private JPanel panelContenido;
+    private JToggleButton tabCrear;
+    private JToggleButton tabVistaPrevia;
+    private JToggleButton tabReservas;
+    private JToggleButton tabDisponibilidad;
     
     public FormularioReserva(ServicioReserva servicioReserva, ClienteRepo clienteRepo, 
                            ServicioRepo servicioRepo, ParteRepo parteRepo, ReservaRepo reservaRepo) {
@@ -61,6 +82,11 @@ public class FormularioReserva extends JFrame {
         this.servicioRepo = servicioRepo;
         this.parteRepo = parteRepo;
         this.reservaRepo = reservaRepo;
+        this.usuarioActual = com.mycompany.proyectofinalpoo.repo.servicios.SecurityContext.getCurrentUser();
+        this.rolActual = (usuarioActual == null) ? null : usuarioActual.getRol();
+        this.esMecanico = rolActual == RolUsuario.MECANICO;
+        this.mecanicoActual = (esMecanico && usuarioActual != null) ? usuarioActual.getUsername() : null;
+        inicializarComponentesBase();
         initComponents();
         cargarDatos();
         configurarValidaciones();
@@ -73,58 +99,179 @@ public class FormularioReserva extends JFrame {
         this.servicioRepo = servicioRepo;
         this.parteRepo = null;
         this.reservaRepo = null;
+        this.usuarioActual = com.mycompany.proyectofinalpoo.repo.servicios.SecurityContext.getCurrentUser();
+        this.rolActual = (usuarioActual == null) ? null : usuarioActual.getRol();
+        this.esMecanico = rolActual == RolUsuario.MECANICO;
+        this.mecanicoActual = (esMecanico && usuarioActual != null) ? usuarioActual.getUsername() : null;
+        inicializarComponentesBase();
         initComponents();
         cargarDatos();
         configurarValidaciones();
+    }
+
+    private void inicializarComponentesBase() {
+        java.time.LocalDate hoy = java.time.LocalDate.now();
+        java.time.ZoneId zona = java.time.ZoneId.systemDefault();
+        java.util.Date min = java.util.Date.from(hoy.atStartOfDay(zona).toInstant());
+        spnFecha = new JSpinner(new javax.swing.SpinnerDateModel(min, min, null, java.util.Calendar.DAY_OF_MONTH));
+        spnFecha.setEditor(new JSpinner.DateEditor(spnFecha, "dd/MM/yyyy"));
+
+        spnHora = new JSpinner(new SpinnerNumberModel(8, 0, 23, 1));
+        spnMinutos = new JSpinner(new SpinnerNumberModel(0, 0, 59, 15));
     }
     
     private void initComponents() {
         setTitle("Crear Reserva - Sistema Avanzado");
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout());
-        
-        // Panel principal con pestañas
-        JTabbedPane tabbedPane = new JTabbedPane();
-        
-        // Pestaña 1: Crear Reserva
-        JPanel panelReserva = crearPanelReserva();
-        tabbedPane.addTab("Crear Reserva", panelReserva);
-        
-        // Pestaña 2: Vista Previa y Validaciones
-        JPanel panelPrevia = crearPanelVistaPrevia();
-        tabbedPane.addTab("Vista Previa", panelPrevia);
-        // Fuente y colores seguros para Unicode
-txtVistaPrevia.setFont(new java.awt.Font("Dialog", java.awt.Font.PLAIN, 14));
-// Alternativas válidas en Windows: "Segoe UI", "Consolas" (si es monoespaciada)
-txtVistaPrevia.setForeground(new java.awt.Color(230,236,245)); // texto claro
-txtVistaPrevia.setBackground(new java.awt.Color(24,28,34));    // azul oscuro
 
-// Opcional: que se vea mejor el texto
-txtVistaPrevia.setLineWrap(true);
-txtVistaPrevia.setWrapStyleWord(true);
+        JPanel panelTabs = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 14));
+        panelTabs.setOpaque(false);
+        ButtonGroup grupoTabs = new ButtonGroup();
 
-        
-        // Pestaña 3: Disponibilidad de Mecánicos
-        // Pestaña 3: Ver Reservas Existentes  
-JPanel panelReservasExistentes = crearPanelReservasExistentes();
-tabbedPane.addTab("Reservas Existentes", panelReservasExistentes);
+        tabCrear = crearTabToggle("Crear Reserva");
+        tabVistaPrevia = crearTabToggle("Vista Previa");
+        tabReservas = crearTabToggle("Reservas Existentes");
+        tabDisponibilidad = crearTabToggle("Disponibilidad");
 
-// Pestaña 4: Disponibilidad de Mecánicos
-JPanel panelMecanicos = crearPanelMecanicos();
-tabbedPane.addTab("Disponibilidad", panelMecanicos);
-        
-        add(tabbedPane, BorderLayout.CENTER);
+        grupoTabs.add(tabCrear);
+        grupoTabs.add(tabVistaPrevia);
+        grupoTabs.add(tabReservas);
+        grupoTabs.add(tabDisponibilidad);
+
+        boolean esMecanico = rolActual == RolUsuario.MECANICO;
+        if (!esMecanico) {
+            panelTabs.add(tabCrear);
+            panelTabs.add(tabVistaPrevia);
+        }
+        panelTabs.add(tabReservas);
+        if (!esMecanico) {
+            panelTabs.add(tabDisponibilidad);
+        }
+
+        add(panelTabs, BorderLayout.NORTH);
+
+        if (!esMecanico) {
+            tabCrear.addActionListener(e -> mostrarSeccion("CREAR"));
+            tabVistaPrevia.addActionListener(e -> mostrarSeccion("VISTA"));
+        }
+        tabReservas.addActionListener(e -> mostrarSeccion("RESERVAS"));
+        if (!esMecanico) {
+            tabDisponibilidad.addActionListener(e -> mostrarSeccion("DISPONIBLE"));
+        }
+
+        cardLayout = new CardLayout();
+        panelContenido = new JPanel(cardLayout);
+        panelContenido.setOpaque(false);
+        if (!esMecanico) {
+            panelContenido.add(crearPanelReserva(), "CREAR");
+            panelContenido.add(crearPanelVistaPrevia(), "VISTA");
+        }
+        panelContenido.add(crearPanelReservasExistentes(), "RESERVAS");
+        if (!esMecanico) {
+            panelContenido.add(crearPanelMecanicos(), "DISPONIBLE");
+        }
+        add(panelContenido, BorderLayout.CENTER);
         
         // Panel de resultados
-        txtResultado = new JTextArea(4, 30);
+        txtResultado.setRows(4);
+        txtResultado.setColumns(30);
         txtResultado.setEditable(false);
-        txtResultado.setBackground(Color.LIGHT_GRAY);
+        txtResultado.setOpaque(true);
+        txtResultado.setBackground(TemaNeoBlue.SURFACE);
+        txtResultado.setForeground(TemaNeoBlue.TXT);
         JScrollPane scrollResultado = new JScrollPane(txtResultado);
         scrollResultado.setBorder(BorderFactory.createTitledBorder("Resultado"));
         add(scrollResultado, BorderLayout.SOUTH);
-        
+
+        if (esMecanico) {
+            mostrarSeccion("RESERVAS");
+        } else {
+            mostrarSeccion("CREAR");
+        }
+        TemaNeoBlue.estilizar(getContentPane());
+        refrescarTabs();
+
         pack();
         setLocationRelativeTo(null);
+    }
+
+    private JToggleButton crearTabToggle(String texto) {
+        JToggleButton toggle = new JToggleButton(texto) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                boolean selected = isSelected();
+
+                int w = getWidth();
+                int h = getHeight();
+                int base = 12;
+
+                Color bg = selected ? TemaNeoBlue.ACCENT : new Color(45, 68, 102, 180);
+                Color border = selected ? new Color(190, 230, 255, 190) : new Color(110, 140, 200, 90);
+                Color shadow = new Color(0, 0, 0, 90);
+
+                Polygon tabShape = new Polygon();
+                tabShape.addPoint(0, h);
+                tabShape.addPoint(0, base);
+                tabShape.addPoint(base, 0);
+                tabShape.addPoint(w - base, 0);
+                tabShape.addPoint(w, base);
+                tabShape.addPoint(w, h);
+
+                g2.setColor(shadow);
+                Polygon shadowShape = new Polygon();
+                for (int i = 0; i < tabShape.npoints; i++) {
+                    shadowShape.addPoint(tabShape.xpoints[i], tabShape.ypoints[i] + 3);
+                }
+                g2.fillPolygon(shadowShape);
+
+                g2.setColor(bg);
+                g2.fillPolygon(tabShape);
+
+                g2.setStroke(new BasicStroke(1.4f));
+                g2.setColor(border);
+                g2.drawPolygon(tabShape);
+
+                g2.setFont(getFont());
+                FontMetrics fm = g2.getFontMetrics();
+                String txt = getText();
+                int textX = (w - fm.stringWidth(txt)) / 2;
+                int textY = (h + fm.getAscent() - fm.getDescent()) / 2;
+                g2.setColor(Color.WHITE);
+                g2.drawString(txt, textX, textY);
+                g2.dispose();
+            }
+        };
+        toggle.setUI(new BasicToggleButtonUI());
+        toggle.setFocusPainted(false);
+        toggle.setBorderPainted(false);
+        toggle.setContentAreaFilled(false);
+        toggle.setOpaque(false);
+        toggle.setFont(TemaNeoBlue.FONT.deriveFont(Font.BOLD, 14f));
+        toggle.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        toggle.setMargin(new Insets(12, 30, 12, 30));
+        toggle.setHorizontalAlignment(SwingConstants.CENTER);
+        toggle.addChangeListener(e -> toggle.repaint());
+        return toggle;
+    }
+
+    private void mostrarSeccion(String clave) {
+        if (cardLayout == null || panelContenido == null) return;
+        if (tabCrear != null) tabCrear.setSelected("CREAR".equals(clave));
+        if (tabVistaPrevia != null) tabVistaPrevia.setSelected("VISTA".equals(clave));
+        if (tabReservas != null) tabReservas.setSelected("RESERVAS".equals(clave));
+        if (tabDisponibilidad != null) tabDisponibilidad.setSelected("DISPONIBLE".equals(clave));
+        cardLayout.show(panelContenido, clave);
+        refrescarTabs();
+    }
+
+    private void refrescarTabs() {
+        if (tabCrear != null) tabCrear.repaint();
+        if (tabVistaPrevia != null) tabVistaPrevia.repaint();
+        if (tabReservas != null) tabReservas.repaint();
+        if (tabDisponibilidad != null) tabDisponibilidad.repaint();
     }
     
     private JPanel crearPanelReserva() {
@@ -149,7 +296,6 @@ gbc.gridx = 1; gbc.gridwidth = 2;
 
 // Panel para ComboBox + botón
 JPanel panelCliente = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-cmbClientes = new JComboBox<>();
 cmbClientes.setPreferredSize(new Dimension(420, 34));
 EstiloCombos.aplicarDarkAzul(cmbClientes);
 cmbClientes.addActionListener(e -> actualizarVistaPrevia());
@@ -172,7 +318,6 @@ panel.add(panelCliente, gbc);
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 1;
         panel.add(new JLabel("Servicio:"), gbc);
         gbc.gridx = 1; gbc.gridwidth = 2;
-        cmbServicios = new JComboBox<>();
         cmbServicios.setPreferredSize(new Dimension(420, 34));
         EstiloCombos.aplicarDarkAzul(cmbServicios);
         cmbServicios.addActionListener(e -> actualizarVistaPrevia());
@@ -182,7 +327,6 @@ panel.add(panelCliente, gbc);
         gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 1;
 panel.add(new JLabel("Mecánico:"), gbc);
 gbc.gridx = 1; gbc.gridwidth = 2;
-cmbMecanicos = new JComboBox<>();
 cmbMecanicos.setPreferredSize(new Dimension(380, 34));
 EstiloCombos.aplicarDarkAzul(cmbMecanicos);
 cmbMecanicos.addActionListener(e -> actualizarVistaPrevia());
@@ -194,25 +338,18 @@ panel.add(cmbMecanicos, gbc);
         panel.add(new JLabel("Fecha:"), gbc);
         gbc.gridx = 1;
         java.time.LocalDate hoy = java.time.LocalDate.now();
-java.time.ZoneId z = java.time.ZoneId.systemDefault();
-java.util.Date min = java.util.Date.from(hoy.atStartOfDay(z).toInstant());
-java.util.Date val = min;
-spnFecha = new JSpinner(new javax.swing.SpinnerDateModel(val, min, null, java.util.Calendar.DAY_OF_MONTH));
-JSpinner.DateEditor editorFecha = new JSpinner.DateEditor(spnFecha, "dd/MM/yyyy");
-spnFecha.setEditor(editorFecha);
-
-        JSpinner.DateEditor dateEditor = new JSpinner.DateEditor(spnFecha, "dd/MM/yyyy");
-        spnFecha.setEditor(dateEditor);
+        java.time.ZoneId z = java.time.ZoneId.systemDefault();
+        java.util.Date min = java.util.Date.from(hoy.atStartOfDay(z).toInstant());
+        ((javax.swing.SpinnerDateModel) spnFecha.getModel()).setStart(min);
+        spnFecha.setValue(min);
         spnFecha.addChangeListener(e -> actualizarVistaPrevia());
-        panel.add(spnFecha, gbc);
-        
+        panel.add(SelectorFechaPopup.adjuntar(spnFecha), gbc);
+
         gbc.gridx = 0; gbc.gridy = 5;
         panel.add(new JLabel("Hora:"), gbc);
         gbc.gridx = 1;
-        
+
         JPanel panelHora = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        spnHora = new JSpinner(new SpinnerNumberModel(8, 0, 23, 1));
-        spnMinutos = new JSpinner(new SpinnerNumberModel(0, 0, 59, 15));
         spnHora.addChangeListener(e -> actualizarVistaPrevia());
         spnMinutos.addChangeListener(e -> actualizarVistaPrevia());
         
@@ -225,10 +362,17 @@ spnFecha.setEditor(editorFecha);
         // Opciones de validación
         gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 3;
         JPanel panelOpciones = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panelOpciones.setBorder(BorderFactory.createTitledBorder("Validaciones"));
+        javax.swing.border.TitledBorder bordeValidaciones = BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(new Color(120,150,220,120)),
+                "Validaciones");
+        bordeValidaciones.setTitleColor(TemaNeoBlue.TXT);
+        panelOpciones.setBorder(bordeValidaciones);
+        panelOpciones.setOpaque(false);
         
-        chkValidarHorario = new JCheckBox("Validar horario laboral (6:00-18:00)", true);
-        chkValidarFinSemana = new JCheckBox("Restringir fines de semana", true);
+        chkValidarHorario.setOpaque(false);
+        chkValidarFinSemana.setOpaque(false);
+        chkValidarHorario.setForeground(TemaNeoBlue.TXT);
+        chkValidarFinSemana.setForeground(TemaNeoBlue.TXT);
         chkValidarHorario.addActionListener(e -> actualizarVistaPrevia());
         chkValidarFinSemana.addActionListener(e -> actualizarVistaPrevia());
         
@@ -241,10 +385,10 @@ spnFecha.setEditor(editorFecha);
         JPanel panelInfo = new JPanel(new GridLayout(3, 1));
         panelInfo.setBorder(BorderFactory.createTitledBorder("Información"));
         
-        lblCostoTotal = new JLabel("Costo Total: Q0.00");
+        lblCostoTotal.setText("Costo Total: Q0.00");
         lblCostoTotal.setFont(new Font("Arial", Font.BOLD, 12));
-        lblDuracionTotal = new JLabel("Duración: 0 minutos");
-        lblDisponibilidad = new JLabel("Estado: Seleccione servicio");
+        lblDuracionTotal.setText("Duración: 0 minutos");
+        lblDisponibilidad.setText("Estado: Seleccione servicio");
         
         panelInfo.add(lblCostoTotal);
         panelInfo.add(lblDuracionTotal);
@@ -283,7 +427,8 @@ spnFecha.setEditor(editorFecha);
     contenido.setLayout(new BoxLayout(contenido, BoxLayout.Y_AXIS));
 
     // ----- Vista previa del servicio -----
-    txtVistaPrevia = new JTextArea(15, 40);
+    txtVistaPrevia.setRows(15);
+    txtVistaPrevia.setColumns(40);
     txtVistaPrevia.setEditable(false);
     txtVistaPrevia.setFont(new Font("Courier New", Font.PLAIN, 12));
     txtVistaPrevia.setLineWrap(true);
@@ -294,7 +439,8 @@ spnFecha.setEditor(editorFecha);
     panelPrevia.add(txtVistaPrevia, BorderLayout.CENTER);
 
     // ----- Partes requeridas -----
-    txtPartesRequeridas = new JTextArea(8, 40);
+    txtPartesRequeridas.setRows(8);
+    txtPartesRequeridas.setColumns(40);
     txtPartesRequeridas.setEditable(false);
     txtPartesRequeridas.setFont(new Font("Courier New", Font.PLAIN, 11));
     txtPartesRequeridas.setLineWrap(true);
@@ -375,23 +521,51 @@ spnFecha.setEditor(editorFecha);
 
         
         // Configurar fecha inicial (mañana)
-        spnFecha.setValue(java.sql.Date.valueOf(LocalDate.now().plusDays(1)));
+        if (spnFecha != null) {
+            spnFecha.setValue(java.sql.Date.valueOf(LocalDate.now().plusDays(1)));
+        }
     }
     
     private void cargarMecanicos() {
-    UsuarioRepo usuarioRepo = new UsuarioFileRepo(Path.of("data"));
-    cmbMecanicos.removeAllItems();
-    for (Usuario u : usuarioRepo.findAll()) {
-        if (u.getRol() == RolUsuario.MECANICO) {
-            cmbMecanicos.addItem(u.getUsername());
+        if (esMecanico) {
+            cmbMecanicos.removeAllItems();
+            if (mecanicoActual != null) {
+                cmbMecanicos.addItem(mecanicoActual);
+                cmbMecanicos.setSelectedItem(mecanicoActual);
+            }
+            cmbMecanicos.setEnabled(false);
+            return;
+        }
+
+        UsuarioRepo usuarioRepo = new UsuarioFileRepo(Path.of("data"));
+        cmbMecanicos.removeAllItems();
+        for (Usuario u : usuarioRepo.findAll()) {
+            if (u.getRol() == RolUsuario.MECANICO) {
+                cmbMecanicos.addItem(u.getUsername());
+            }
         }
     }
-}
 
     
+    public void setAlGuardar(Consumer<LocalDate> listener) {
+        this.alGuardar = listener;
+    }
+
     public void setAlGuardar(Runnable r) {
-    this.alGuardar = r;
-}
+        if (r == null) {
+            this.alGuardar = null;
+        } else {
+            this.alGuardar = fecha -> r.run();
+        }
+    }
+
+    private void notificarCambio(LocalDate fecha) {
+        if (alGuardar != null) {
+            try {
+                alGuardar.accept(fecha);
+            } catch (Exception ignored) {}
+        }
+    }
     
     private void configurarValidaciones() {
         actualizarVistaPrevia();
@@ -657,22 +831,17 @@ private void actualizarPartesRequeridas(Servicio servicio) {
         actualizarVistaPrevia();
         
         // Cambiar a la pestaña de crear reserva
-        ((JTabbedPane) getContentPane().getComponent(0)).setSelectedIndex(0);
+        mostrarSeccion("CREAR");
         
         txtResultado.setText("Mecánico seleccionado: " + mecanicoSeleccionado);
     }
     
     private void cargarReservasExistentes() {
-    if (reservaRepo == null) {
-        System.out.println("AVISO: repositorio no disponible");
-        return;
-    }
-    
-    modeloReservasExistentes.setRowCount(0);
-    List<Reserva> reservas = reservaRepo.findAll();
-    System.out.println("Reservas encontradas: " + reservas.size());
-    
-    for (Reserva reserva : reservas) {
+        modeloReservasExistentes.setRowCount(0);
+        List<Reserva> reservas = obtenerReservasBase();
+        System.out.println("Reservas encontradas: " + reservas.size());
+
+        for (Reserva reserva : reservas) {
         // Obtener nombres de cliente y servicio
         String nombreCliente = clienteRepo.findById(reserva.getClienteId())
             .map(Cliente::getNombre)
@@ -703,6 +872,20 @@ private void actualizarPartesRequeridas(Servicio servicio) {
         // Esta función aplicaría filtros a la tabla, similar al FormularioInventario
         // Por simplicidad, no implemento el filtro complejo aquí
         txtResultado.setText("Use 'Cargar Reservas' después de cambiar filtros");
+    }
+
+    private List<Reserva> obtenerReservasBase() {
+        try {
+            if (servicioReserva != null) {
+                return servicioReserva.listarReservasAsignadasAlActual();
+            }
+        } catch (Exception ex) {
+            System.err.println("Error obteniendo reservas asignadas: " + ex.getMessage());
+        }
+        if (reservaRepo != null) {
+            return reservaRepo.findAll();
+        }
+        return java.util.Collections.emptyList();
     }
     
     private void limpiarFiltrosReservas() {
@@ -766,12 +949,16 @@ private void actualizarPartesRequeridas(Servicio servicio) {
     }
     
     private void eliminarReservaSeleccionada() {
-    int filaSeleccionada = tablaReservasExistentes.getSelectedRow();
-    if (filaSeleccionada == -1) {
-        JOptionPane.showMessageDialog(this, "Seleccione una reserva de la tabla", 
-            "Error", JOptionPane.ERROR_MESSAGE);
-        return;
-    }
+        int filaSeleccionada = tablaReservasExistentes.getSelectedRow();
+        if (filaSeleccionada == -1) {
+            JOptionPane.showMessageDialog(this, "Seleccione una reserva de la tabla", 
+                "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (esMecanico) {
+            JOptionPane.showMessageDialog(this, "No tienes permiso para eliminar reservas", "Aviso", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
     
     // Obtener el modelo actual (puede ser filtrado)
     DefaultTableModel modeloActual = (DefaultTableModel) tablaReservasExistentes.getModel();
@@ -796,13 +983,67 @@ private void actualizarPartesRequeridas(Servicio servicio) {
             servicioReserva.deleteReserva(reservaId);
             System.out.println("Reserva eliminada: " + cliente + " - " + fecha);
             cargarReservasExistentes();
-            if (alGuardar != null) alGuardar.run();
+            LocalDate fechaLocal = null;
+            try {
+                fechaLocal = LocalDate.parse(fecha, java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            } catch (Exception ignored) {}
+            notificarCambio(fechaLocal);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error al eliminar reserva: " + ex.getMessage(), 
                 "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 }
+
+    private void cambiarEstadoReservaSeleccionada() {
+        int fila = tablaReservasExistentes.getSelectedRow();
+        if (fila == -1) {
+            JOptionPane.showMessageDialog(this, "Selecciona una reserva primero", "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String id = (String) modeloReservasExistentes.getValueAt(fila, 0);
+        String mecanicoAsignado = (String) modeloReservasExistentes.getValueAt(fila, 5);
+        if (esMecanico && (mecanicoAsignado == null || !mecanicoAsignado.equalsIgnoreCase(mecanicoActual))) {
+            JOptionPane.showMessageDialog(this, "Solo puedes modificar reservas asignadas a ti", "Permiso denegado", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        Object estadoActualObj = modeloReservasExistentes.getValueAt(fila, 6);
+        ReservaEstado estadoActual;
+        try {
+            estadoActual = (estadoActualObj instanceof ReservaEstado)
+                    ? (ReservaEstado) estadoActualObj
+                    : ReservaEstado.valueOf(String.valueOf(estadoActualObj));
+        } catch (Exception e) {
+            estadoActual = ReservaEstado.PROGRAMADA;
+        }
+
+        ReservaEstado nuevoEstado = (ReservaEstado) JOptionPane.showInputDialog(
+                this,
+                "Selecciona el nuevo estado",
+                "Cambiar Estado",
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                ReservaEstado.values(),
+                estadoActual);
+
+        if (nuevoEstado == null || nuevoEstado == estadoActual) return;
+
+        try {
+            Reserva actualizada = servicioReserva.changeEstado(id, nuevoEstado);
+            modeloReservasExistentes.setValueAt(nuevoEstado, fila, 6);
+            txtResultado.setText("Estado actualizado: " + nuevoEstado);
+            if (actualizada != null && actualizada.getFecha() != null) {
+                notificarCambio(actualizada.getFecha().toLocalDate());
+            } else {
+                notificarCambio(null);
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "No se pudo cambiar el estado: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
     
     private void crearReserva() {
     try {
@@ -879,7 +1120,7 @@ private void actualizarPartesRequeridas(Servicio servicio) {
                 "Mecánico: " + mecanico);
 
         limpiarCampos();
-        if (alGuardar != null) alGuardar.run();
+        notificarCambio(fecha);
 
     } catch (Exception ex) {
         JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -892,11 +1133,15 @@ private void actualizarPartesRequeridas(Servicio servicio) {
     private void limpiarCampos() {
         if (cmbClientes.getItemCount() > 0) cmbClientes.setSelectedIndex(0);
         if (cmbServicios.getItemCount() > 0) cmbServicios.setSelectedIndex(0);
-        cmbMecanicos.setSelectedIndex(-1);
+        if (esMecanico) {
+            if (mecanicoActual != null) cmbMecanicos.setSelectedItem(mecanicoActual);
+        } else {
+            cmbMecanicos.setSelectedIndex(-1);
+        }
 
-        spnFecha.setValue(java.sql.Date.valueOf(LocalDate.now().plusDays(1)));
-        spnHora.setValue(8);
-        spnMinutos.setValue(0);
+        if (spnFecha != null) spnFecha.setValue(java.sql.Date.valueOf(LocalDate.now().plusDays(1)));
+        if (spnHora != null) spnHora.setValue(8);
+        if (spnMinutos != null) spnMinutos.setValue(0);
         actualizarVistaPrevia();
     }
     
@@ -929,11 +1174,18 @@ private void actualizarPartesRequeridas(Servicio servicio) {
     JScrollPane scroll = new JScrollPane(tablaReservasExistentes);
     panel.add(scroll, BorderLayout.CENTER);
     
-    // Botón eliminar abajo
-    JButton btnEliminar = new JButton("Eliminar Seleccionada");
-    btnEliminar.addActionListener(e -> eliminarReservaSeleccionada());
-    panel.add(btnEliminar, BorderLayout.SOUTH);
-    
+    JPanel panelInferior = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+    JButton btnCambiarEstado = new JButton("Cambiar Estado");
+    btnCambiarEstado.addActionListener(e -> cambiarEstadoReservaSeleccionada());
+    panelInferior.add(btnCambiarEstado);
+
+    if (!esMecanico) {
+        JButton btnEliminar = new JButton("Eliminar Seleccionada");
+        btnEliminar.addActionListener(e -> eliminarReservaSeleccionada());
+        panelInferior.add(btnEliminar);
+    }
+    panel.add(panelInferior, BorderLayout.SOUTH);
+
     return panel;
 }
     
@@ -948,13 +1200,10 @@ private void aplicarFiltrosBusqueda() {
     }
     
     try {
-        // Limpiar la tabla actual
         modeloReservasExistentes.setRowCount(0);
-        
-        if (reservaRepo != null) {
-            List<Reserva> todasLasReservas = reservaRepo.findAll();
-            
-            for (Reserva reserva : todasLasReservas) {
+        List<Reserva> todasLasReservas = obtenerReservasBase();
+
+        for (Reserva reserva : todasLasReservas) {
                 // Obtener los nombres completos
                 String nombreCliente = clienteRepo.findById(reserva.getClienteId())
                     .map(Cliente::getNombre)
@@ -989,18 +1238,16 @@ private void aplicarFiltrosBusqueda() {
                     // Agregar directamente al modelo existente
                     modeloReservasExistentes.addRow(fila);
                 }
-            }
-            
-            // Notificar a la tabla que los datos cambiaron
-            modeloReservasExistentes.fireTableDataChanged();
-            
-            System.out.println("Búsqueda completada. Texto: '" + textoBuscar + 
-                             "', Resultados: " + modeloReservasExistentes.getRowCount());
         }
+
+        modeloReservasExistentes.fireTableDataChanged();
+        System.out.println("Búsqueda completada. Texto: '" + textoBuscar + 
+                         "', Resultados: " + modeloReservasExistentes.getRowCount());
         
     } catch (Exception e) {
         System.err.println("Error en búsqueda: " + e.getMessage());
         e.printStackTrace();
+        cargarReservasExistentes();
     }
 }
 

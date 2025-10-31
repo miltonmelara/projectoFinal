@@ -1,14 +1,38 @@
 package com.mycompany.proyectofinalpoo.gui;
 
-import javax.swing.*;
+import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Window;
+import java.nio.file.Path;
+
+import javax.swing.AbstractButton;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingConstants;
+import javax.swing.Timer;
+import javax.swing.UIManager;
+import javax.swing.WindowConstants;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.AbstractDocument;
-import java.awt.*;
-import java.nio.file.Path;
+import java.awt.Component;
+import java.util.Arrays;
+import java.util.List;
 
-import com.mycompany.proyectofinalpoo.Usuario;
 import com.mycompany.proyectofinalpoo.RolUsuario;
+import com.mycompany.proyectofinalpoo.Usuario;
 import com.mycompany.proyectofinalpoo.repo.ClienteRepo;
 import com.mycompany.proyectofinalpoo.repo.ParteRepo;
 import com.mycompany.proyectofinalpoo.repo.ReservaRepo;
@@ -17,10 +41,10 @@ import com.mycompany.proyectofinalpoo.repo.file.ClienteFileRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ParteFileRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ReservaFileRepo;
 import com.mycompany.proyectofinalpoo.repo.file.ServicioFileRepo;
+import com.mycompany.proyectofinalpoo.repo.servicios.SecurityContext;
+import com.mycompany.proyectofinalpoo.repo.servicios.ServicioCliente;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioInventario;
 import com.mycompany.proyectofinalpoo.repo.servicios.ServicioReserva;
-import com.mycompany.proyectofinalpoo.repo.servicios.ServicioCliente;
-import com.mycompany.proyectofinalpoo.repo.servicios.SecurityContext;
 import com.mycompany.proyectofinalpoo.util.MigracionIdsReservas;
 
 public class Dashboard extends JFrame {
@@ -62,10 +86,11 @@ public class Dashboard extends JFrame {
 
         // Servicios
         initReposServicios();
+        Usuario usuarioActual = SecurityContext.getCurrentUser();
         try { MigracionIdsReservas.ejecutarEnCarpeta(Path.of("data")); } catch (Exception ignored) {}
 
         setTitle("Sistema de Taller");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setSize(1200, 760);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
@@ -112,8 +137,18 @@ public class Dashboard extends JFrame {
                 JOptionPane.QUESTION_MESSAGE
             );
             if (r == JOptionPane.YES_OPTION) {
-                dispose();
-                SwingUtilities.invokeLater(() -> new InicioSesion(Path.of("data")).setVisible(true));
+                SecurityContext.clear();
+                for (Window window : Window.getWindows()) {
+                    if (window instanceof Dashboard) {
+                        window.setVisible(false);
+                        window.dispose();
+                    }
+                }
+                SwingUtilities.invokeLater(() -> {
+                    InicioSesion login = new InicioSesion(Path.of("data"));
+                    login.setVisible(true);
+                    login.toFront();
+                });
             }
         });
 
@@ -158,10 +193,21 @@ public class Dashboard extends JFrame {
         }
 
         // ===== PANEL LATERAL =====
-        JPanel lateral = new JPanel();
+        JPanel lateral = new JPanel(new BorderLayout());
         lateral.setBackground(LATERAL_BG);
-        lateral.setLayout(new GridLayout(0,1,0,16));
-        lateral.setBorder(BorderFactory.createEmptyBorder(16,12,16,12));
+        lateral.setBorder(BorderFactory.createEmptyBorder(20,12,20,12));
+
+        JLabel lblPanel = new JLabel("Panel de Control");
+        lblPanel.setForeground(TemaNeoBlue.TXT);
+        lblPanel.setFont(TemaNeoBlue.FONT.deriveFont(Font.BOLD, 16f));
+        lblPanel.setHorizontalAlignment(SwingConstants.CENTER);
+        lblPanel.setBorder(BorderFactory.createEmptyBorder(0,0,16,0));
+        lateral.add(lblPanel, BorderLayout.NORTH);
+
+        JPanel contBotones = new JPanel();
+        contBotones.setOpaque(false);
+        contBotones.setLayout(new BoxLayout(contBotones, BoxLayout.Y_AXIS));
+        lateral.add(contBotones, BorderLayout.CENTER);
 
         bCal = nuevoBoton("Calendario");
         bCli = nuevoBoton("Clientes");
@@ -171,16 +217,19 @@ public class Dashboard extends JFrame {
         bHis = nuevoBoton("Historial");
         bRep = nuevoBoton("Reportes");
 
-        lateral.add(bCal);
-        lateral.add(bCli);
-        lateral.add(bRes);
-        lateral.add(bInv);
-        lateral.add(bEst);
-        lateral.add(bHis);
-        lateral.add(bRep);
-
+        java.util.List<AbstractButton> botonesOrden = java.util.Arrays.asList(bCal, bCli, bRes, bInv, bEst, bHis, bRep);
+        if (esAdmin()) {
+            for (AbstractButton boton : botonesOrden) agregarBotonLateral(contBotones, boton);
+        } else {
+            agregarBotonLateral(contBotones, bCal);
+            agregarBotonLateral(contBotones, bRes);
+            agregarBotonLateral(contBotones, bHis);
+        }
         // ===== CONTENIDO =====
         vistaCalendario = new VistaCalendario(servicioReserva, parteRepo, servicioRepo);
+        if (usuarioActual != null && usuarioActual.getRol() == RolUsuario.MECANICO) {
+            vistaCalendario.bloquearAFiltroMecanico(usuarioActual.getUsername());
+        }
         if (esAdmin()) {
             vistaClientes = new VistaClientes(servicioCliente, clienteRepo);
         }
@@ -270,6 +319,13 @@ public class Dashboard extends JFrame {
         return b;
     }
 
+    private void agregarBotonLateral(JPanel contenedor, AbstractButton boton) {
+        boton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        boton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
+        if (contenedor.getComponentCount() > 0) contenedor.add(Box.createVerticalStrut(16));
+        contenedor.add(boton);
+    }
+
     /* ===================== Selección segura ===================== */
     private void seleccionar(AbstractButton seleccionado) {
         if (bCal != null) bCal.setSelected(seleccionado == bCal);
@@ -293,7 +349,7 @@ public class Dashboard extends JFrame {
     /* ===================== Vistas embebidas ===================== */
     private JPanel crearVistaReservaEmbebida() {
         FormularioReserva f = new FormularioReserva(servicioReserva, clienteRepo, servicioRepo, parteRepo, reservaRepo);
-        f.setAlGuardar(() -> vistaCalendario.refrescarDesdeExterno());
+        f.setAlGuardar(fecha -> vistaCalendario.refrescarPorCambio(fecha));
         JPanel vista = new JPanel(new BorderLayout());
         vista.add(f.getContentPane(), BorderLayout.CENTER);
         return vista;
@@ -308,6 +364,7 @@ public class Dashboard extends JFrame {
 
     private JPanel crearVistaEstadosEmbebida() {
         FormularioEstadoReserva f = new FormularioEstadoReserva(servicioReserva, reservaRepo, clienteRepo, servicioRepo);
+        f.setOnCambioReserva(fecha -> vistaCalendario.refrescarPorCambio(fecha));
         JPanel vista = new JPanel(new BorderLayout());
         vista.add(f.getContentPane(), BorderLayout.CENTER);
         return vista;
